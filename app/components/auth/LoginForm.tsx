@@ -49,18 +49,18 @@ export default function LoginForm() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-md mx-auto"
+            className="w-full max-w-md mx-auto px-1"
         >
-            <div className="text-center mb-8">
-                <Link href="/" className="inline-flex items-center gap-2 mb-6">
-                    <img src="/logo.png" alt="متطوع" className="w-12 h-12 rounded-full shadow-lg" />
+            <div className="text-center mb-6 sm:mb-8">
+                <Link href="/" className="inline-flex items-center gap-2 mb-4 sm:mb-6">
+                    <img src="/logo.png" alt="متطوع" className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg" />
                 </Link>
-                <h1 className="text-3xl font-black text-slate-900 mb-2">مرحباً بعودتك!</h1>
-                <p className="text-slate-500">سجّل دخولك للوصول إلى لوحة التحكم</p>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-1.5 sm:mb-2">مرحباً بعودتك!</h1>
+                <p className="text-sm sm:text-base text-slate-500">سجّل دخولك للوصول إلى لوحة التحكم</p>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-card p-8 border border-slate-100">
-                <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-card p-5 sm:p-8 border border-slate-100">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                     <Input
                         label="البريد الإلكتروني"
                         type="email"
@@ -81,12 +81,12 @@ export default function LoginForm() {
                         required
                     />
 
-                    <div className="flex items-center justify-between text-sm">
-                        <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
-                            <input type="checkbox" className="rounded border-slate-300 text-primary-500" />
+                    <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
+                        <label className="flex items-center gap-2 text-slate-600 cursor-pointer whitespace-nowrap">
+                            <input type="checkbox" className="rounded border-slate-300 text-primary-500 w-4 h-4" />
                             <span>تذكرني</span>
                         </label>
-                        <a href="#" className="text-primary-600 hover:text-primary-700 font-medium">
+                        <a href="#" className="text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap">
                             نسيت كلمة المرور؟
                         </a>
                     </div>
@@ -97,9 +97,9 @@ export default function LoginForm() {
                 </form>
 
                 {/* Divider */}
-                <div className="flex items-center gap-4 my-6">
+                <div className="flex items-center gap-3 sm:gap-4 my-5 sm:my-6">
                     <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-sm text-slate-400">أو</span>
+                    <span className="text-xs sm:text-sm text-slate-400">أو</span>
                     <div className="flex-1 h-px bg-slate-200" />
                 </div>
 
@@ -114,7 +114,7 @@ export default function LoginForm() {
                 </Button>
 
                 {/* Register Link */}
-                <p className="text-center mt-6 text-slate-500">
+                <p className="text-center mt-5 sm:mt-6 text-sm sm:text-base text-slate-500">
                     ليس لديك حساب؟{' '}
                     <Link href="/register" className="text-primary-600 font-bold hover:text-primary-700">
                         سجّل الآن

@@ -63,23 +63,23 @@ export default function OrganizationDashboard() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8"
+                className="flex flex-col gap-4 mb-6 sm:mb-8"
             >
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-1 sm:mb-2">
                         مرحباً {profile?.displayName || 'بالمنظمة'}! 🏢
                     </h1>
-                    <p className="text-slate-500">تابع فرصك التطوعية وأدر المتقدمين</p>
+                    <p className="text-sm sm:text-base text-slate-500">تابع فرصك التطوعية وأدر المتقدمين</p>
                 </div>
-                <Link href="/organization/post-opportunity">
-                    <Button variant="primary" className="mt-4 sm:mt-0" icon={<IoAddOutline />}>
+                <Link href="/organization/post-opportunity" className="self-start">
+                    <Button variant="primary" icon={<IoAddOutline />}>
                         نشر فرصة جديدة
                     </Button>
                 </Link>
             </motion.div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
                 <ImpactCard
                     title="الفرص المنشورة"
                     value={String(opportunities.length)}
@@ -113,8 +113,8 @@ export default function OrganizationDashboard() {
                 transition={{ delay: 0.2 }}
                 className="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden"
             >
-                <div className="p-6 border-b border-slate-100">
-                    <h2 className="text-xl font-bold text-slate-800">الفرص المنشورة</h2>
+                <div className="p-4 sm:p-6 border-b border-slate-100">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-800">الفرص المنشورة</h2>
                 </div>
 
                 {opportunities.length > 0 ? (
@@ -125,47 +125,49 @@ export default function OrganizationDashboard() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.1 }}
-                                className="p-6 hover:bg-slate-50 transition-colors"
+                                className="p-4 sm:p-6 hover:bg-slate-50 transition-colors"
                             >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-bold text-slate-800 mb-1">{opp.title}</h3>
-                                        <div className="flex items-center gap-4 text-sm text-slate-500">
-                                            <span>{opp.spotsFilled || 0} متقدم</span>
-                                            <span>{opp.spotsFilled || 0}/{opp.spotsTotal} مقعد ممتلئ</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
+                                {/* Mobile: Stack layout */}
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">{opp.title}</h3>
                                         <Badge
                                             variant={opp.status === 'open' ? 'success' : 'danger'}
                                         >
                                             {opp.status === 'open' ? 'متاح' : 'مغلق'}
                                         </Badge>
-                                        <Link href="/organization/applicants">
-                                            <Button variant="ghost" size="sm">
-                                                عرض المتقدمين
-                                            </Button>
-                                        </Link>
                                     </div>
-                                </div>
 
-                                {/* Progress Bar */}
-                                <div className="mt-3">
-                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${((opp.spotsFilled || 0) / opp.spotsTotal) * 100}%` }}
-                                            transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
-                                            className="h-full gradient-primary rounded-full"
-                                        />
+                                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-500">
+                                        <span>{opp.spotsFilled || 0} متقدم</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                        <span>{opp.spotsFilled || 0}/{opp.spotsTotal} مقعد ممتلئ</span>
                                     </div>
+
+                                    {/* Progress Bar */}
+                                    <div>
+                                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${((opp.spotsFilled || 0) / opp.spotsTotal) * 100}%` }}
+                                                transition={{ duration: 1, delay: 0.5 + index * 0.1 }}
+                                                className="h-full gradient-primary rounded-full"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <Link href="/organization/applicants" className="self-start">
+                                        <Button variant="ghost" size="sm">
+                                            عرض المتقدمين
+                                        </Button>
+                                    </Link>
                                 </div>
                             </motion.div>
                         ))}
                     </div>
                 ) : (
-                    <div className="p-12 text-center">
-                        <p className="text-slate-400 mb-4">لم تنشر أي فرص تطوعية بعد</p>
+                    <div className="p-8 sm:p-12 text-center">
+                        <p className="text-slate-400 mb-4 text-sm sm:text-base">لم تنشر أي فرص تطوعية بعد</p>
                         <Link href="/organization/post-opportunity">
                             <Button variant="primary" icon={<IoAddOutline />}>
                                 نشر فرصة جديدة

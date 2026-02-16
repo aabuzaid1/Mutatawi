@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { IoRocketOutline, IoArrowBack } from 'react-icons/io5';
 import Button from '../ui/Button';
+import { useAuth } from '@/app/hooks/useAuth';
 
 // Smooth stagger container
 const containerVariants = {
@@ -30,6 +31,8 @@ const itemVariants = {
 };
 
 export default function Hero() {
+    const { user } = useAuth();
+
     return (
         <section className="relative min-h-screen flex items-center overflow-hidden">
             {/* Background */}
@@ -108,7 +111,7 @@ export default function Hero() {
                             variants={itemVariants}
                             className="flex flex-wrap gap-4"
                         >
-                            <Link href="/register">
+                            <Link href={user ? '/opportunities' : '/login'}>
                                 <Button variant="primary" size="lg" icon={<IoArrowBack />}>
                                     ابدأ التطوع الآن
                                 </Button>
