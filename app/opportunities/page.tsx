@@ -55,7 +55,7 @@ const cardVariants = {
         scale: 1,
         transition: {
             duration: 0.5,
-            ease: [0.25, 0.46, 0.45, 0.94],
+            ease: [0.25, 0.46, 0.45, 0.94] as const,
         },
     },
 };
@@ -154,8 +154,8 @@ export default function OpportunitiesPage() {
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${showFilters || selectedCategory
-                                        ? 'bg-primary-50 text-primary-600'
-                                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                    ? 'bg-primary-50 text-primary-600'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                     }`}
                             >
                                 <IoFilterOutline size={18} />
@@ -197,8 +197,8 @@ export default function OpportunitiesPage() {
                                                 setLoading(true);
                                             }}
                                             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat
-                                                    ? 'bg-primary-600 text-white shadow-md'
-                                                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                                ? 'bg-primary-600 text-white shadow-md'
+                                                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
                                                 }`}
                                         >
                                             <span>{categoryEmojis[cat]}</span>
@@ -218,8 +218,8 @@ export default function OpportunitiesPage() {
                     <button
                         onClick={() => { setSelectedCategory(''); setLoading(true); }}
                         className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${!selectedCategory
-                                ? 'bg-primary-600 text-white shadow-sm'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-300'
+                            ? 'bg-primary-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-300'
                             }`}
                     >
                         الكل
@@ -229,8 +229,8 @@ export default function OpportunitiesPage() {
                             key={cat}
                             onClick={() => { setSelectedCategory(selectedCategory === cat ? '' : cat); setLoading(true); }}
                             className={`flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === cat
-                                    ? 'bg-primary-600 text-white shadow-sm'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-300'
+                                ? 'bg-primary-600 text-white shadow-sm'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-300'
                                 }`}
                         >
                             <span>{categoryEmojis[cat]}</span>

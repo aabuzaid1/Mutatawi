@@ -28,7 +28,7 @@ export default function Home() {
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] as const }}
                 >
                     <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-6">
                         مستعد لإحداث فرق؟
