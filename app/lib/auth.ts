@@ -3,6 +3,7 @@ import {
     signInWithEmailAndPassword,
     signOut as firebaseSignOut,
     sendPasswordResetEmail,
+    sendEmailVerification,
     verifyPasswordResetCode,
     confirmPasswordReset,
     GoogleAuthProvider,
@@ -38,6 +39,9 @@ export async function signUp(
     };
 
     await setDoc(doc(db, 'users', user.uid), userProfile);
+
+    // Send email verification
+    await sendEmailVerification(user);
 
     return user;
 }
@@ -92,7 +96,6 @@ export async function resetPassword(email: string): Promise<void> {
         await sendPasswordResetEmail(auth, email, actionCodeSettings);
     } catch (error: any) {
         console.error('Reset password error:', error.code, error.message);
-        // If the continue URI is not authorized, try without it
         if (error.code === 'auth/unauthorized-continue-uri') {
             await sendPasswordResetEmail(auth, email);
             return;
@@ -110,4 +113,12 @@ export async function verifyResetCode(code: string): Promise<string> {
 // Confirm the new password with the reset code
 export async function confirmReset(code: string, newPassword: string): Promise<void> {
     await confirmPasswordReset(auth, code, newPassword);
+}
+
+// Resend email verification
+export async function resendVerificationEmail(): Promise<void> {
+    const user = auth.currentUser;
+    if (user && !user.emailVerified) {
+        await sendEmailVerification(user);
+    }
 }

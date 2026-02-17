@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoPersonOutline, IoLogoGoogle } from 'react-icons/io5';
-import { signUp, signInWithGoogle } from '@/app/lib/auth';
+import { signUp, signInWithGoogle, signOut } from '@/app/lib/auth';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import RoleSelector from './RoleSelector';
@@ -37,8 +37,12 @@ export default function RegisterForm() {
 
         try {
             await signUp(email, password, name, role);
-            toast.success('تم إنشاء حسابك بنجاح! 🎉');
-            router.push(role === 'organization' ? '/organization' : '/volunteer');
+            toast.success('تم إرسال إيميل التحقق، يرجى تفعيل حسابك لتتمكن من الدخول ✉️', {
+                duration: 5000,
+            });
+            // Sign out so user must verify email before accessing dashboard
+            await signOut();
+            router.push('/verify-email');
         } catch (error: any) {
             if (error.code === 'auth/email-already-in-use') {
                 toast.error('هذا البريد الإلكتروني مستخدم بالفعل');

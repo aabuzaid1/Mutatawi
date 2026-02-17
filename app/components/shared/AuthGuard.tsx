@@ -11,7 +11,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-    const { user, profile, loading } = useAuth();
+    const { user, profile, loading, emailVerified } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -20,11 +20,17 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
                 router.push('/login');
                 return;
             }
+            // Check email verification (skip for Google-authenticated users)
+            const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
+            if (!emailVerified && !isGoogleUser) {
+                router.push('/verify-email');
+                return;
+            }
             if (requiredRole && profile?.role !== requiredRole) {
                 router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
             }
         }
-    }, [user, profile, loading, requiredRole, router]);
+    }, [user, profile, loading, requiredRole, emailVerified, router]);
 
     if (loading) {
         return (
@@ -38,6 +44,9 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     }
 
     if (!user) return null;
+
+    const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
+    if (!emailVerified && !isGoogleUser) return null;
     if (requiredRole && profile?.role !== requiredRole) return null;
 
     return <>{children}</>;

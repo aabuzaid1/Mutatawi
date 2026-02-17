@@ -10,6 +10,7 @@ interface AuthContextType {
     user: User | null;
     profile: UserProfile | null;
     loading: boolean;
+    emailVerified: boolean;
     setProfile: (profile: UserProfile | null) => void;
 }
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
     user: null,
     profile: null,
     loading: true,
+    emailVerified: false,
     setProfile: () => { },
 });
 
@@ -24,10 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [emailVerified, setEmailVerified] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
+            setEmailVerified(firebaseUser?.emailVerified ?? false);
             if (firebaseUser) {
                 const userProfile = await getUserProfile(firebaseUser.uid);
                 setProfile(userProfile);
@@ -41,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, profile, loading, setProfile }}>
+        <AuthContext.Provider value={{ user, profile, loading, emailVerified, setProfile }}>
             {children}
         </AuthContext.Provider>
     );

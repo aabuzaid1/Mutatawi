@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoLogoGoogle } from 'react-icons/io5';
-import { signIn, signInWithGoogle } from '@/app/lib/auth';
+import { signIn, signInWithGoogle, signOut } from '@/app/lib/auth';
 import { getUserProfile } from '@/app/lib/auth';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -23,11 +23,29 @@ export default function LoginForm() {
 
         try {
             const user = await signIn(email, password);
+
+            // Check email verification (skip for Google users)
+            const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
+            if (!user.emailVerified && !isGoogleUser) {
+                await signOut();
+                toast.error('يرجى تفعيل حسابك أولاً عبر البريد الإلكتروني ✉️', { duration: 4000 });
+                router.push('/verify-email');
+                return;
+            }
+
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
             router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
         } catch (error: any) {
-            toast.error('خطأ في تسجيل الدخول. تحقق من بياناتك.');
+            if (error.code === 'auth/user-not-found') {
+                toast.error('هذا الحساب غير موجود');
+            } else if (error.code === 'auth/wrong-password') {
+                toast.error('كلمة المرور غير صحيحة');
+            } else if (error.code === 'auth/invalid-credential') {
+                toast.error('بيانات الدخول غير صحيحة');
+            } else {
+                toast.error('خطأ في تسجيل الدخول. تحقق من بياناتك.');
+            }
         } finally {
             setLoading(false);
         }
