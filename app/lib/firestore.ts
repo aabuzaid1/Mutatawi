@@ -302,3 +302,18 @@ export async function getFeedbacksByOpportunity(opportunityId: string) {
         createdAt: doc.data().createdAt?.toDate?.() || new Date(),
     })) as Feedback[];
 }
+
+// ===================== USER PROFILE =====================
+
+export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {
+    await updateDoc(doc(db, 'users', uid), {
+        ...data,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+// ===================== DELETE OPPORTUNITY =====================
+
+export async function deleteOpportunity(id: string) {
+    await deleteDoc(doc(db, 'opportunities', id));
+}

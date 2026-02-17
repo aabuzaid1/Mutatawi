@@ -21,7 +21,9 @@ export async function signUp(
     email: string,
     password: string,
     displayName: string,
-    role: 'volunteer' | 'organization'
+    role: 'volunteer' | 'organization',
+    phone?: string,
+    governorate?: string
 ): Promise<User> {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
@@ -37,6 +39,8 @@ export async function signUp(
         createdAt: new Date(),
         updatedAt: new Date(),
     };
+    if (phone) userProfile.phone = phone;
+    if (governorate) userProfile.location = governorate;
 
     await setDoc(doc(db, 'users', user.uid), userProfile);
 

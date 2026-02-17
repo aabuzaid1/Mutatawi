@@ -4,18 +4,25 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { IoMailOutline, IoLockClosedOutline, IoPersonOutline, IoLogoGoogle } from 'react-icons/io5';
+import { IoMailOutline, IoLockClosedOutline, IoPersonOutline, IoLogoGoogle, IoCallOutline, IoLocationOutline } from 'react-icons/io5';
 import { signUp, signInWithGoogle, signOut } from '@/app/lib/auth';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import RoleSelector from './RoleSelector';
 import toast from 'react-hot-toast';
 
+const governorates = [
+    'عمان', 'إربد', 'الزرقاء', 'المفرق', 'عجلون', 'جرش',
+    'مادبا', 'البلقاء', 'الكرك', 'الطفيلة', 'معان', 'العقبة',
+];
+
 export default function RegisterForm() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [phone, setPhone] = useState('');
+    const [governorate, setGovernorate] = useState('');
     const [role, setRole] = useState<'volunteer' | 'organization'>('volunteer');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -33,10 +40,20 @@ export default function RegisterForm() {
             return;
         }
 
+        if (!phone) {
+            toast.error('يرجى إدخال رقم الهاتف');
+            return;
+        }
+
+        if (!governorate) {
+            toast.error('يرجى اختيار المحافظة');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            await signUp(email, password, name, role);
+            await signUp(email, password, name, role, phone, governorate);
             toast.success('تم إرسال إيميل التحقق، يرجى تفعيل حسابك لتتمكن من الدخول ✉️', {
                 duration: 5000,
             });
@@ -58,7 +75,7 @@ export default function RegisterForm() {
         try {
             await signInWithGoogle();
             toast.success('تم تسجيل الدخول بنجاح!');
-            router.push('/volunteer');
+            router.push('/complete-profile');
         } catch (error: any) {
             toast.error('حدث خطأ أثناء تسجيل الدخول بجوجل.');
         }
@@ -108,6 +125,37 @@ export default function RegisterForm() {
                         icon={<IoMailOutline size={18} />}
                         required
                     />
+
+                    <Input
+                        label="رقم الهاتف"
+                        type="tel"
+                        placeholder="07XXXXXXXX"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        icon={<IoCallOutline size={18} />}
+                        required
+                    />
+
+                    {/* Governorate Select */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                            المحافظة
+                        </label>
+                        <div className="relative">
+                            <IoLocationOutline className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <select
+                                value={governorate}
+                                onChange={(e) => setGovernorate(e.target.value)}
+                                className="w-full pr-10 pl-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none bg-white text-sm appearance-none"
+                                required
+                            >
+                                <option value="">اختر المحافظة</option>
+                                {governorates.map(gov => (
+                                    <option key={gov} value={gov}>{gov}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
                     <Input
                         label="كلمة المرور"

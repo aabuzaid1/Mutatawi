@@ -15,8 +15,9 @@ import Button from '@/app/components/ui/Button';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getOpportunities, getApplicationsByOrganization } from '@/app/lib/firestore';
+import { getOpportunities, getApplicationsByOrganization, deleteOpportunity } from '@/app/lib/firestore';
 import { Opportunity, Application } from '@/app/types';
+import toast from 'react-hot-toast';
 
 export default function OrganizationDashboard() {
     const { user, profile } = useAuth();
@@ -42,6 +43,18 @@ export default function OrganizationDashboard() {
         }
         loadData();
     }, [user]);
+
+    const handleDelete = async (oppId: string) => {
+        if (!confirm('هل أنت متأكد من حذف هذه الفرصة؟')) return;
+        try {
+            await deleteOpportunity(oppId);
+            setOpportunities(prev => prev.filter(o => o.id !== oppId));
+            toast.success('تم حذف الفرصة بنجاح');
+        } catch (error: any) {
+            console.error('Delete error:', error);
+            toast.error('فشل حذف الفرصة');
+        }
+    };
 
     if (loading) {
         return (
@@ -161,6 +174,14 @@ export default function OrganizationDashboard() {
                                             عرض المتقدمين
                                         </Button>
                                     </Link>
+
+                                    {/* Delete Button */}
+                                    <button
+                                        onClick={() => handleDelete(opp.id)}
+                                        className="self-start text-xs text-danger-600 hover:text-danger-700 font-medium hover:underline transition-colors"
+                                    >
+                                        حذف الفرصة
+                                    </button>
                                 </div>
                             </motion.div>
                         ))}

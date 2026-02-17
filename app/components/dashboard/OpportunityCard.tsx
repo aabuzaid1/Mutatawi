@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { IoLocationOutline, IoTimeOutline, IoCalendarOutline, IoPeopleOutline } from 'react-icons/io5';
+import { IoLocationOutline, IoTimeOutline, IoCalendarOutline, IoPeopleOutline, IoTrashOutline } from 'react-icons/io5';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import { Opportunity } from '@/app/types';
@@ -10,12 +11,15 @@ import { categoryColors } from '@/app/lib/utils';
 interface OpportunityCardProps {
     opportunity: Opportunity;
     onApply?: (id: string) => void;
+    onDelete?: (id: string) => void;
     showApply?: boolean;
+    isOwner?: boolean;
 }
 
-export default function OpportunityCard({ opportunity, onApply, showApply = true }: OpportunityCardProps) {
+export default function OpportunityCard({ opportunity, onApply, onDelete, showApply = true, isOwner = false }: OpportunityCardProps) {
     const colors = categoryColors[opportunity.category] || categoryColors['مجتمع'];
     const spotsLeft = opportunity.spotsTotal - (opportunity.spotsFilled || 0);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     return (
         <motion.div
@@ -101,7 +105,7 @@ export default function OpportunityCard({ opportunity, onApply, showApply = true
                 )}
 
                 {/* Apply Button */}
-                {showApply && opportunity.status === 'open' && spotsLeft > 0 && (
+                {showApply && !isOwner && opportunity.status === 'open' && spotsLeft > 0 && (
                     <Button
                         variant="primary"
                         size="sm"
@@ -110,6 +114,43 @@ export default function OpportunityCard({ opportunity, onApply, showApply = true
                     >
                         تقدّم الآن
                     </Button>
+                )}
+
+                {/* Delete Button for Owner */}
+                {isOwner && onDelete && (
+                    <div className="mt-3">
+                        {confirmDelete ? (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => { onDelete(opportunity.id); setConfirmDelete(false); }}
+                                    icon={<IoTrashOutline size={16} />}
+                                >
+                                    تأكيد الحذف
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setConfirmDelete(false)}
+                                >
+                                    إلغاء
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-danger-600 border-danger-200 hover:bg-danger-50"
+                                onClick={() => setConfirmDelete(true)}
+                                icon={<IoTrashOutline size={16} />}
+                            >
+                                حذف الفرصة
+                            </Button>
+                        )}
+                    </div>
                 )}
             </div>
         </motion.div>
