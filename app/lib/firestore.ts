@@ -172,18 +172,38 @@ export async function getApplicationsByOrganization(organizationId: string) {
 }
 
 export async function getApplicationsByVolunteer(volunteerId: string) {
-    const q = query(
-        collection(db, 'applications'),
-        where('volunteerId', '==', volunteerId),
-        orderBy('appliedAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        appliedAt: doc.data().appliedAt?.toDate?.() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
-    })) as Application[];
+    try {
+        const q = query(
+            collection(db, 'applications'),
+            where('volunteerId', '==', volunteerId),
+            orderBy('appliedAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        console.log(`getApplicationsByVolunteer: found ${snapshot.size} applications for ${volunteerId}`);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            appliedAt: doc.data().appliedAt?.toDate?.() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+        })) as Application[];
+    } catch (error: any) {
+        console.warn('getApplicationsByVolunteer: index missing, fetching without orderBy', error.message);
+        // Fallback: fetch without orderBy if composite index doesn't exist
+        const q = query(
+            collection(db, 'applications'),
+            where('volunteerId', '==', volunteerId)
+        );
+        const snapshot = await getDocs(q);
+        console.log(`getApplicationsByVolunteer fallback: found ${snapshot.size} applications`);
+        const results = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            appliedAt: doc.data().appliedAt?.toDate?.() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+        })) as Application[];
+        // Sort client-side
+        return results.sort((a, b) => b.appliedAt.getTime() - a.appliedAt.getTime());
+    }
 }
 
 export async function updateApplicationStatus(id: string, status: 'accepted' | 'rejected') {
@@ -301,19 +321,4 @@ export async function getFeedbacksByOpportunity(opportunityId: string) {
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate?.() || new Date(),
     })) as Feedback[];
-}
-
-// ===================== USER PROFILE =====================
-
-export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {
-    await updateDoc(doc(db, 'users', uid), {
-        ...data,
-        updatedAt: serverTimestamp(),
-    });
-}
-
-// ===================== DELETE OPPORTUNITY =====================
-
-export async function deleteOpportunity(id: string) {
-    await deleteDoc(doc(db, 'opportunities', id));
 }

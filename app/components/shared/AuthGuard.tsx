@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/app/hooks/useAuth';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -13,6 +13,7 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     const { user, profile, loading, emailVerified } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         if (!loading) {
@@ -26,11 +27,18 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
                 router.push('/verify-email');
                 return;
             }
+            // Check profile completeness (phone + location)
+            if (profile && (!profile.phone || !profile.location)) {
+                if (pathname !== '/complete-profile') {
+                    router.push('/complete-profile');
+                    return;
+                }
+            }
             if (requiredRole && profile?.role !== requiredRole) {
                 router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
             }
         }
-    }, [user, profile, loading, requiredRole, emailVerified, router]);
+    }, [user, profile, loading, requiredRole, emailVerified, router, pathname]);
 
     if (loading) {
         return (
@@ -47,6 +55,8 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
     const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
     if (!emailVerified && !isGoogleUser) return null;
+    // Allow rendering if on complete-profile page itself
+    if (profile && (!profile.phone || !profile.location) && pathname !== '/complete-profile') return null;
     if (requiredRole && profile?.role !== requiredRole) return null;
 
     return <>{children}</>;

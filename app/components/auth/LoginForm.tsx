@@ -35,7 +35,12 @@ export default function LoginForm() {
 
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
-            router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
+            // If profile is missing phone or location, redirect to complete profile
+            if (!profile?.phone || !profile?.location) {
+                router.push('/complete-profile');
+            } else {
+                router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
+            }
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 toast.error('هذا الحساب غير موجود');
@@ -56,7 +61,12 @@ export default function LoginForm() {
             const user = await signInWithGoogle();
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
-            router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
+            // If profile is missing phone or location, redirect to complete profile
+            if (!profile?.phone || !profile?.location) {
+                router.push('/complete-profile');
+            } else {
+                router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
+            }
         } catch (error: any) {
             toast.error('حدث خطأ أثناء تسجيل الدخول بجوجل.');
         }
