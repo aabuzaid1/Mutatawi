@@ -84,9 +84,18 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
 
             // Upload image if provided
             if (imageFile) {
-                const storageRef = ref(storage, `opportunities/${Date.now()}_${imageFile.name}`);
-                const snapshot = await uploadBytes(storageRef, imageFile);
-                imageUrl = await getDownloadURL(snapshot.ref);
+                try {
+                    toast.loading('جار رفع الصورة...', { id: 'upload' });
+                    const storageRef = ref(storage, `opportunities/${Date.now()}_${imageFile.name}`);
+                    const snapshot = await uploadBytes(storageRef, imageFile);
+                    imageUrl = await getDownloadURL(snapshot.ref);
+                    toast.dismiss('upload');
+                } catch (uploadError: any) {
+                    toast.dismiss('upload');
+                    console.error('Image upload error:', uploadError);
+                    toast.error('فشل رفع الصورة. سيتم نشر الفرصة بدون صورة.');
+                    // Continue without image
+                }
             }
 
             const data = {
@@ -102,6 +111,7 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
             await onSubmit(data);
         } catch (error: any) {
             console.error('Error submitting form:', error);
+            toast.error(`خطأ: ${error?.message || 'حدث خطأ غير متوقع'}`);
         } finally {
             setLoading(false);
         }
