@@ -70,7 +70,7 @@ export interface Application {
     volunteerEmail: string;
     volunteerPhone?: string;
     message: string;
-    status: 'pending' | 'accepted' | 'rejected';
+    status: 'pending' | 'accepted' | 'rejected' | 'deleted';
     appliedAt: Date;
     updatedAt: Date;
 }

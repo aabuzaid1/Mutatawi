@@ -17,7 +17,7 @@ const governorates = [
 ];
 
 export default function CompleteProfilePage() {
-    const { user, profile, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading, setProfile } = useAuth();
     const router = useRouter();
     const [phone, setPhone] = useState('');
     const [governorate, setGovernorate] = useState('');
@@ -60,6 +60,10 @@ export default function CompleteProfilePage() {
                 phone,
                 location: governorate,
             });
+            // Update profile in context so AuthGuard knows profile is complete
+            if (profile) {
+                setProfile({ ...profile, phone, location: governorate });
+            }
             toast.success('تم حفظ بياناتك بنجاح! 🎉');
             // Redirect based on role
             const redirectPath = profile?.role === 'organization' ? '/organization' : '/volunteer';

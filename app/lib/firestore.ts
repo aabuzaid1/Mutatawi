@@ -104,6 +104,21 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>) 
 }
 
 export async function deleteOpportunity(id: string) {
+    // Mark all applications for this opportunity as 'deleted'
+    const appsQuery = query(
+        collection(db, 'applications'),
+        where('opportunityId', '==', id)
+    );
+    const appsSnap = await getDocs(appsQuery);
+    const updatePromises = appsSnap.docs.map(appDoc =>
+        updateDoc(doc(db, 'applications', appDoc.id), {
+            status: 'deleted',
+            updatedAt: serverTimestamp(),
+        })
+    );
+    await Promise.all(updatePromises);
+
+    // Delete the opportunity
     await deleteDoc(doc(db, 'opportunities', id));
 }
 

@@ -127,11 +127,13 @@ export default function VolunteerDashboard() {
                                         <Badge
                                             variant={
                                                 app.status === 'accepted' ? 'success' :
-                                                    app.status === 'rejected' ? 'danger' : 'warning'
+                                                    app.status === 'rejected' ? 'danger' :
+                                                        app.status === 'deleted' ? 'default' : 'warning'
                                             }
                                         >
                                             {app.status === 'accepted' ? 'مقبول' :
-                                                app.status === 'rejected' ? 'مرفوض' : 'قيد المراجعة'}
+                                                app.status === 'rejected' ? 'مرفوض' :
+                                                    app.status === 'deleted' ? 'محذوفة' : 'قيد المراجعة'}
                                         </Badge>
                                     </div>
 
