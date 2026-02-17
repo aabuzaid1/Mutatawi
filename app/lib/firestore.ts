@@ -44,25 +44,44 @@ export async function getOpportunities(filters?: {
     organizationId?: string;
     featured?: boolean;
 }) {
-    let q = query(collection(db, 'opportunities'), orderBy('createdAt', 'desc'));
+    try {
+        // Build query constraints
+        const constraints: any[] = [];
 
-    if (filters?.category) {
-        q = query(collection(db, 'opportunities'), where('category', '==', filters.category), orderBy('createdAt', 'desc'));
-    }
-    if (filters?.status) {
-        q = query(collection(db, 'opportunities'), where('status', '==', filters.status), orderBy('createdAt', 'desc'));
-    }
-    if (filters?.organizationId) {
-        q = query(collection(db, 'opportunities'), where('organizationId', '==', filters.organizationId), orderBy('createdAt', 'desc'));
-    }
+        if (filters?.status) {
+            constraints.push(where('status', '==', filters.status));
+        }
+        if (filters?.category) {
+            constraints.push(where('category', '==', filters.category));
+        }
+        if (filters?.organizationId) {
+            constraints.push(where('organizationId', '==', filters.organizationId));
+        }
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
-    })) as Opportunity[];
+        let results;
+        try {
+            // Try with orderBy (requires composite index)
+            const q = query(collection(db, 'opportunities'), ...constraints, orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+            results = snapshot.docs;
+        } catch (indexError: any) {
+            // Fallback: if index doesn't exist, query without orderBy
+            console.warn('Firestore index missing, fetching without sort:', indexError.message);
+            const q = query(collection(db, 'opportunities'), ...constraints);
+            const snapshot = await getDocs(q);
+            results = snapshot.docs;
+        }
+
+        return results.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+        })) as Opportunity[];
+    } catch (error: any) {
+        console.error('getOpportunities error:', error.code, error.message);
+        return [];
+    }
 }
 
 export async function getOpportunity(id: string) {
