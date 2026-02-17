@@ -3,6 +3,8 @@ import {
     signInWithEmailAndPassword,
     signOut as firebaseSignOut,
     sendPasswordResetEmail,
+    verifyPasswordResetCode,
+    confirmPasswordReset,
     GoogleAuthProvider,
     signInWithPopup,
     updateProfile,
@@ -82,9 +84,9 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 export async function resetPassword(email: string): Promise<void> {
     const actionCodeSettings = {
         url: typeof window !== 'undefined'
-            ? `${window.location.origin}/login`
-            : 'http://localhost:3000/login',
-        handleCodeInApp: false,
+            ? `${window.location.origin}/reset-password`
+            : 'http://localhost:3000/reset-password',
+        handleCodeInApp: true,
     };
     try {
         await sendPasswordResetEmail(auth, email, actionCodeSettings);
@@ -97,4 +99,15 @@ export async function resetPassword(email: string): Promise<void> {
         }
         throw error;
     }
+}
+
+// Verify the reset code from the email link
+export async function verifyResetCode(code: string): Promise<string> {
+    const email = await verifyPasswordResetCode(auth, code);
+    return email;
+}
+
+// Confirm the new password with the reset code
+export async function confirmReset(code: string, newPassword: string): Promise<void> {
+    await confirmPasswordReset(auth, code, newPassword);
 }

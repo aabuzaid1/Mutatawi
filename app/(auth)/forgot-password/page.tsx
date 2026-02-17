@@ -145,15 +145,15 @@ export default function ForgotPasswordPage() {
                             <div className="space-y-3 text-sm text-slate-600">
                                 <div className="flex items-start gap-3 text-right">
                                     <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">١</span>
-                                    <p>افتح بريدك الإلكتروني وابحث عن رسالة من متطوعي</p>
+                                    <p>افتح بريدك الإلكتروني وابحث عن رسالة إعادة تعيين كلمة المرور</p>
                                 </div>
                                 <div className="flex items-start gap-3 text-right">
                                     <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">٢</span>
-                                    <p>اضغط على رابط إعادة تعيين كلمة المرور</p>
+                                    <p>اضغط على الرابط في الرسالة وسيتم توجيهك للموقع</p>
                                 </div>
                                 <div className="flex items-start gap-3 text-right">
                                     <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">٣</span>
-                                    <p>أدخل كلمة مرور جديدة وقم بتسجيل الدخول</p>
+                                    <p>أدخل كلمة المرور الجديدة مباشرة في الموقع</p>
                                 </div>
                             </div>
 
