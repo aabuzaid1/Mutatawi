@@ -1,88 +1,139 @@
 'use client';
 
-import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { IoHeartOutline, IoLogoGithub, IoLogoTwitter, IoLogoLinkedin } from 'react-icons/io5';
+import Link from 'next/link';
+import { IoLogoInstagram, IoCallOutline, IoGlobeOutline, IoHeartSharp } from 'react-icons/io5';
 
 export default function Footer() {
-    const footerLinks = {
-        'المنصة': [
-            { label: 'كيف يعمل', href: '#how-it-works' },
-            { label: 'قصص النجاح', href: '#testimonials' },
-        ],
-        'للمتطوعين': [
-            { label: 'سجل كمتطوع', href: '/register' },
-            { label: 'الملف الشخصي', href: '/volunteer/profile' },
-        ],
-        'للمنظمات': [
-            { label: 'سجل منظمتك', href: '/register' },
-            { label: 'انشر فرصة تطوعية', href: '/organization/post-opportunity' },
-            { label: 'إدارة المتقدمين', href: '/organization/applicants' },
-        ],
-    };
-
     return (
-        <footer className="bg-slate-900 text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-                    {/* Brand */}
-                    <div className="lg:col-span-1">
-                        <div className="flex items-center gap-2 mb-4">
-                            <img src="/logo.png" alt="متطوع" className="w-10 h-10 rounded-full shadow-lg" />
-                            <span className="text-xl font-bold">متطوع</span>
-                        </div>
-                        <p className="text-slate-400 leading-relaxed mb-6">
-                            منصة تربط المتطوعين بالفرص التطوعية في مجتمعاتهم، لبناء مستقبل أفضل معاً.
-                        </p>
-                        <div className="flex gap-3">
-                            {[IoLogoTwitter, IoLogoLinkedin, IoLogoGithub].map((Icon, i) => (
-                                <motion.a
-                                    key={i}
-                                    href="#"
-                                    className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-primary-500 transition-colors duration-200"
-                                    whileHover={{ scale: 1.1, y: -2 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                                >
-                                    <Icon size={18} />
-                                </motion.a>
-                            ))}
-                        </div>
-                    </div>
+        <footer className="bg-slate-900 text-white relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0aDR2MWgtNHYtMXptMC0yaDF2NGgtMXYtNHptMi0yaDF2MWgtMXYtMXptLTIgMGgxdjFoLTF2LTF6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
 
-                    {/* Links */}
-                    {Object.entries(footerLinks).map(([title, links]) => (
-                        <div key={title}>
-                            <h3 className="font-bold text-lg mb-4">{title}</h3>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                {/* Main Footer Content */}
+                <div className="py-12 sm:py-16">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                        {/* Brand */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6 }}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <img src="/logo.png" alt="متطوعي" className="w-10 h-10 rounded-full" />
+                                <h3 className="text-xl font-bold">متطوعي</h3>
+                            </div>
+                            <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
+                                منصة متطوعي تربط المتطوعين بالفرص التطوعية في مجتمعاتهم.
+                                اكتشف فرصاً تطوعية تناسب مهاراتك وساهم في بناء مستقبل أفضل.
+                            </p>
+                        </motion.div>
+
+                        {/* Quick Links */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6, delay: 0.1 }}
+                        >
+                            <h4 className="text-lg font-bold mb-4">روابط سريعة</h4>
                             <ul className="space-y-3">
-                                {links.map((link) => (
-                                    <li key={link.label}>
-                                        <Link
-                                            href={link.href}
-                                            className="text-slate-400 hover:text-white hover:pr-1 transition-all duration-200"
-                                        >
-                                            {link.label}
-                                        </Link>
-                                    </li>
-                                ))}
+                                <li>
+                                    <Link href="/" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                        الرئيسية
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/opportunities" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                        الفرص التطوعية
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                        سجّل كمتطوع
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                        سجّل منظمتك
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/login" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                        تسجيل الدخول
+                                    </Link>
+                                </li>
                             </ul>
-                        </div>
-                    ))}
+                        </motion.div>
+
+                        {/* Contact */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6, delay: 0.2 }}
+                        >
+                            <h4 className="text-lg font-bold mb-4">تواصل معنا</h4>
+                            <ul className="space-y-3">
+                                <li>
+                                    <a
+                                        href="tel:0790796457"
+                                        className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
+                                    >
+                                        <IoCallOutline size={18} />
+                                        <span dir="ltr">0790796457</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="https://www.instagram.com/a.abuzaid06?igsh=MWF6MjF0cWcwZGhsYw=="
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
+                                    >
+                                        <IoLogoInstagram size={18} />
+                                        <span>@a.abuzaid06</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="https://abdelrahman-abuzaid-protofolio.vercel.app/?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPNTY3MDY3MzQzMzUyNDI3AAGnlSlTcIb8dlkpOQSrzMVCIylzaNjTXcPO2aQ6O0ANveFC4Kc3W5sjbEmkO7g_aem_Zq8HwN_nf28yZjb_TE7Paw"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
+                                    >
+                                        <IoGlobeOutline size={18} />
+                                        <span>البورتفوليو</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </motion.div>
+                    </div>
                 </div>
 
-                {/* Bottom */}
-                <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-slate-400 text-sm">
-                        © 2024 متطوع. جميع الحقوق محفوظة.
-                    </p>
-                    <p className="text-slate-400 text-sm flex items-center gap-1">
-                        صُنع بـ <motion.span
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+                {/* Bottom Bar */}
+                <div className="border-t border-slate-800 py-6">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-slate-400">
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            className="flex items-center gap-1.5 flex-wrap justify-center"
                         >
-                            <IoHeartOutline className="text-danger-500" />
-                        </motion.span> في الأردن
-                    </p>
+                            تم تصميم وتطوير الموقع بواسطة
+                            <a
+                                href="https://abdelrahman-abuzaid-protofolio.vercel.app/?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPNTY3MDY3MzQzMzUyNDI3AAGnlSlTcIb8dlkpOQSrzMVCIylzaNjTXcPO2aQ6O0ANveFC4Kc3W5sjbEmkO7g_aem_Zq8HwN_nf28yZjb_TE7Paw"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-400 hover:text-primary-300 font-bold transition-colors"
+                            >
+                                عبدالرحمن ابوزيد
+                            </a>
+                            <IoHeartSharp className="text-red-400" size={14} />
+                        </motion.p>
+                    </div>
                 </div>
             </div>
         </footer>

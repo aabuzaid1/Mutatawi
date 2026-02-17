@@ -39,7 +39,7 @@ export default function Stats() {
     const stats = [
         {
             icon: IoPeopleOutline,
-            value: 5200,
+            value: 200,
             label: 'متطوع نشط',
             color: 'from-primary-500 to-primary-600',
             bgColor: 'bg-primary-50',
@@ -47,7 +47,7 @@ export default function Stats() {
         },
         {
             icon: IoTimeOutline,
-            value: 28000,
+            value: 100,
             label: 'ساعة تطوعية',
             color: 'from-success-500 to-success-600',
             bgColor: 'bg-success-50',
@@ -55,7 +55,7 @@ export default function Stats() {
         },
         {
             icon: IoBusinessOutline,
-            value: 340,
+            value: 5,
             label: 'منظمة شريكة',
             color: 'from-warning-500 to-warning-600',
             bgColor: 'bg-warning-50',
@@ -63,7 +63,7 @@ export default function Stats() {
         },
         {
             icon: IoHeartOutline,
-            value: 1500,
+            value: 20,
             label: 'فرصة تطوعية',
             color: 'from-danger-500 to-danger-600',
             bgColor: 'bg-danger-50',

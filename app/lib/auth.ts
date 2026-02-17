@@ -2,6 +2,7 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut as firebaseSignOut,
+    sendPasswordResetEmail,
     GoogleAuthProvider,
     signInWithPopup,
     updateProfile,
@@ -76,4 +77,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         return userDoc.data() as UserProfile;
     }
     return null;
+}
+
+export async function resetPassword(email: string): Promise<void> {
+    await sendPasswordResetEmail(auth, email);
 }

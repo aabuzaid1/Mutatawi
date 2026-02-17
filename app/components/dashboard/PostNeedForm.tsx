@@ -5,27 +5,35 @@ import { motion } from 'framer-motion';
 import {
     IoDocumentTextOutline,
     IoLocationOutline,
-    IoCalendarOutline,
     IoTimeOutline,
+    IoCalendarOutline,
     IoPeopleOutline,
+    IoImageOutline,
+    IoCloseCircleOutline,
 } from 'react-icons/io5';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
-import { OpportunityCategory } from '@/app/types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/app/lib/firebase';
 import toast from 'react-hot-toast';
 
 interface PostNeedFormProps {
     onSubmit: (data: any) => Promise<void>;
 }
 
-const categories: OpportunityCategory[] = ['تعليم', 'صحة', 'بيئة', 'مجتمع', 'تقنية', 'رياضة', 'ثقافة', 'إغاثة'];
+const categories = [
+    'تعليم', 'صحة', 'بيئة', 'مجتمع', 'تقنية', 'رياضة', 'ثقافة', 'إغاثة'
+];
 
 export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
+    const [loading, setLoading] = useState(false);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         title: '',
-        shortDescription: '',
         description: '',
-        category: 'مجتمع' as OpportunityCategory,
+        shortDescription: '',
+        category: 'مجتمع',
         location: '',
         isRemote: false,
         date: '',
@@ -37,211 +45,308 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
         requirements: '',
         benefits: '',
     });
-    const [loading, setLoading] = useState(false);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
+                return;
+            }
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const removeImage = () => {
+        setImageFile(null);
+        setImagePreview(null);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            await onSubmit({
+            let imageUrl = '';
+
+            // Upload image if provided
+            if (imageFile) {
+                const storageRef = ref(storage, `opportunities/${Date.now()}_${imageFile.name}`);
+                const snapshot = await uploadBytes(storageRef, imageFile);
+                imageUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            const data = {
                 ...formData,
-                skills: formData.skills.split('،').map((s) => s.trim()).filter(Boolean),
-                requirements: formData.requirements.split('،').map((s) => s.trim()).filter(Boolean),
-                benefits: formData.benefits.split('،').map((s) => s.trim()).filter(Boolean),
-                spotsFilled: 0,
-                status: 'open',
-                featured: false,
-            });
-            toast.success('تم نشر الفرصة بنجاح! 🎉');
-        } catch (error) {
-            toast.error('حدث خطأ أثناء النشر');
+                imageUrl,
+                duration: Number(formData.duration),
+                spotsTotal: Number(formData.spotsTotal),
+                skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean),
+                requirements: formData.requirements.split(',').map(s => s.trim()).filter(Boolean),
+                benefits: formData.benefits.split(',').map(s => s.trim()).filter(Boolean),
+            };
+
+            await onSubmit(data);
+        } catch (error: any) {
+            console.error('Error submitting form:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const updateField = (field: string, value: any) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-    };
-
     return (
-        <motion.div
+        <motion.form
+            onSubmit={handleSubmit}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-soft border border-slate-100 p-5 sm:p-8 space-y-6"
         >
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Info */}
-                <div className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <IoDocumentTextOutline className="text-primary-500" />
-                        المعلومات الأساسية
-                    </h3>
-
-                    <div className="space-y-4">
-                        <Input
-                            label="عنوان الفرصة"
-                            placeholder="مثال: حملة تنظيف الحدائق العامة"
-                            value={formData.title}
-                            onChange={(e) => updateField('title', e.target.value)}
-                            required
+            {/* Image Upload */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-3">
+                    صورة الفرصة
+                </label>
+                {imagePreview ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200">
+                        <img
+                            src={imagePreview}
+                            alt="معاينة الصورة"
+                            className="w-full h-48 sm:h-56 object-cover"
                         />
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">الوصف المختصر</label>
-                            <textarea
-                                placeholder="وصف مختصر يظهر في بطاقة الفرصة"
-                                value={formData.shortDescription}
-                                onChange={(e) => updateField('shortDescription', e.target.value)}
-                                className="input-field min-h-[80px] resize-none"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">الوصف التفصيلي</label>
-                            <textarea
-                                placeholder="وصف تفصيلي للفرصة التطوعية والمهام المطلوبة"
-                                value={formData.description}
-                                onChange={(e) => updateField('description', e.target.value)}
-                                className="input-field min-h-[120px] resize-none"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">التصنيف</label>
-                            <select
-                                value={formData.category}
-                                onChange={(e) => updateField('category', e.target.value)}
-                                className="input-field"
+                        <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute top-3 left-3 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                            <IoCloseCircleOutline size={20} />
+                        </button>
+                    </div>
+                ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all duration-300 group">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <motion.div
+                                whileHover={{ scale: 1.1 }}
+                                className="w-14 h-14 rounded-full bg-primary-50 flex items-center justify-center mb-3 group-hover:bg-primary-100 transition-colors"
                             >
-                                {categories.map((cat) => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
+                                <IoImageOutline className="text-primary-500" size={28} />
+                            </motion.div>
+                            <p className="text-sm text-slate-500 font-medium">
+                                اضغط لرفع صورة للفرصة
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                                PNG, JPG, WEBP (بحد أقصى 5 ميجابايت)
+                            </p>
                         </div>
-                    </div>
-                </div>
-
-                {/* Location & Time */}
-                <div className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <IoLocationOutline className="text-primary-500" />
-                        الموقع والوقت
-                    </h3>
-
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.isRemote}
-                                    onChange={(e) => updateField('isRemote', e.target.checked)}
-                                    className="rounded border-slate-300 text-primary-500"
-                                />
-                                <span className="text-sm text-slate-700">عن بُعد</span>
-                            </label>
-                        </div>
-
-                        {!formData.isRemote && (
-                            <Input
-                                label="الموقع"
-                                placeholder="مثال: عمّان - شارع الجامعة"
-                                value={formData.location}
-                                onChange={(e) => updateField('location', e.target.value)}
-                                icon={<IoLocationOutline size={18} />}
-                                required
-                            />
-                        )}
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <Input
-                                label="التاريخ"
-                                type="date"
-                                value={formData.date}
-                                onChange={(e) => updateField('date', e.target.value)}
-                                icon={<IoCalendarOutline size={18} />}
-                                required
-                            />
-                            <Input
-                                label="وقت البداية"
-                                type="time"
-                                value={formData.startTime}
-                                onChange={(e) => updateField('startTime', e.target.value)}
-                                icon={<IoTimeOutline size={18} />}
-                                required
-                            />
-                            <Input
-                                label="وقت النهاية"
-                                type="time"
-                                value={formData.endTime}
-                                onChange={(e) => updateField('endTime', e.target.value)}
-                                icon={<IoTimeOutline size={18} />}
-                                required
-                            />
-                        </div>
-
-                        <Input
-                            label="عدد المقاعد"
-                            type="number"
-                            min={1}
-                            value={formData.spotsTotal}
-                            onChange={(e) => updateField('spotsTotal', parseInt(e.target.value))}
-                            icon={<IoPeopleOutline size={18} />}
-                            required
+                        <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
                         />
-                    </div>
+                    </label>
+                )}
+            </div>
+
+            {/* Title */}
+            <Input
+                label="عنوان الفرصة"
+                name="title"
+                placeholder="مثال: حملة تنظيف الحديقة العامة"
+                value={formData.title}
+                onChange={handleChange}
+                icon={<IoDocumentTextOutline size={18} />}
+                required
+            />
+
+            {/* Short Description */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    وصف مختصر
+                </label>
+                <textarea
+                    name="shortDescription"
+                    placeholder="وصف مختصر للفرصة (جملة أو جملتين)"
+                    value={formData.shortDescription}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none resize-none text-sm"
+                    required
+                />
+            </div>
+
+            {/* Full Description */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    الوصف الكامل
+                </label>
+                <textarea
+                    name="description"
+                    placeholder="وصف تفصيلي عن الفرصة التطوعية..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none resize-none text-sm"
+                    required
+                />
+            </div>
+
+            {/* Category */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    التصنيف
+                </label>
+                <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none bg-white text-sm"
+                >
+                    {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Location & Remote */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                    label="الموقع"
+                    name="location"
+                    placeholder="مثال: عمّان"
+                    value={formData.location}
+                    onChange={handleChange}
+                    icon={<IoLocationOutline size={18} />}
+                    required
+                />
+                <div className="flex items-end pb-1">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            name="isRemote"
+                            checked={formData.isRemote}
+                            onChange={handleChange}
+                            className="w-5 h-5 rounded border-slate-300 text-primary-500"
+                        />
+                        <span className="text-sm text-slate-700 font-medium">عن بُعد</span>
+                    </label>
                 </div>
+            </div>
 
-                {/* Skills & Requirements */}
-                <div className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">المهارات والمتطلبات</h3>
+            {/* Date & Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                    label="التاريخ"
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    icon={<IoCalendarOutline size={18} />}
+                    required
+                />
+                <Input
+                    label="وقت البداية"
+                    type="time"
+                    name="startTime"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    icon={<IoTimeOutline size={18} />}
+                    required
+                />
+                <Input
+                    label="وقت النهاية"
+                    type="time"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    icon={<IoTimeOutline size={18} />}
+                    required
+                />
+            </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                المهارات المطلوبة <span className="text-slate-400">(مفصولة بفاصلة)</span>
-                            </label>
-                            <input
-                                placeholder="مثال: تعليم، تواصل، عمل جماعي"
-                                value={formData.skills}
-                                onChange={(e) => updateField('skills', e.target.value)}
-                                className="input-field"
-                            />
-                        </div>
+            {/* Duration & Spots */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                    label="المدة (بالساعات)"
+                    type="number"
+                    name="duration"
+                    placeholder="3"
+                    value={String(formData.duration)}
+                    onChange={handleChange}
+                    icon={<IoTimeOutline size={18} />}
+                    required
+                />
+                <Input
+                    label="عدد المقاعد"
+                    type="number"
+                    name="spotsTotal"
+                    placeholder="10"
+                    value={String(formData.spotsTotal)}
+                    onChange={handleChange}
+                    icon={<IoPeopleOutline size={18} />}
+                    required
+                />
+            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                المتطلبات <span className="text-slate-400">(مفصولة بفاصلة)</span>
-                            </label>
-                            <input
-                                placeholder="مثال: العمر ١٨+، القدرة على الحركة"
-                                value={formData.requirements}
-                                onChange={(e) => updateField('requirements', e.target.value)}
-                                className="input-field"
-                            />
-                        </div>
+            {/* Skills */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    المهارات المطلوبة (مفصولة بفاصلة)
+                </label>
+                <input
+                    name="skills"
+                    placeholder="مثال: تواصل, عمل جماعي, قيادة"
+                    value={formData.skills}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none text-sm"
+                />
+            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                المزايا <span className="text-slate-400">(مفصولة بفاصلة)</span>
-                            </label>
-                            <input
-                                placeholder="مثال: شهادة تطوع، وجبات، مواصلات"
-                                value={formData.benefits}
-                                onChange={(e) => updateField('benefits', e.target.value)}
-                                className="input-field"
-                            />
-                        </div>
-                    </div>
-                </div>
+            {/* Requirements */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    المتطلبات (مفصولة بفاصلة)
+                </label>
+                <input
+                    name="requirements"
+                    placeholder="مثال: العمر 18+, التزام بالمواعيد"
+                    value={formData.requirements}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none text-sm"
+                />
+            </div>
 
-                {/* Submit */}
-                <Button type="submit" variant="primary" size="lg" className="w-full" loading={loading}>
-                    نشر الفرصة التطوعية
-                </Button>
-            </form>
-        </motion.div>
+            {/* Benefits */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                    المميزات (مفصولة بفاصلة)
+                </label>
+                <input
+                    name="benefits"
+                    placeholder="مثال: شهادة مشاركة, خبرة عملية"
+                    value={formData.benefits}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none text-sm"
+                />
+            </div>
+
+            {/* Submit */}
+            <Button type="submit" variant="primary" className="w-full" loading={loading}>
+                نشر الفرصة التطوعية
+            </Button>
+        </motion.form>
     );
 }

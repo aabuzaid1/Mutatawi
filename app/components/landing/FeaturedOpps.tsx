@@ -123,14 +123,22 @@ export default function FeaturedOpps() {
                                 className="bg-white rounded-2xl border border-slate-100 shadow-soft overflow-hidden group cursor-pointer smooth-appear"
                             >
                                 {/* Image Area */}
-                                <div className={`h-40 ${colors.bg} flex items-center justify-center relative overflow-hidden`}>
-                                    <motion.span
-                                        className="text-6xl"
-                                        whileHover={{ scale: 1.2, rotate: -5 }}
-                                        transition={{ type: 'spring', stiffness: 250 }}
-                                    >
-                                        {opp.image}
-                                    </motion.span>
+                                <div className={`h-40 ${opp.image?.startsWith('http') ? '' : colors.bg} flex items-center justify-center relative overflow-hidden`}>
+                                    {opp.image?.startsWith('http') ? (
+                                        <img
+                                            src={opp.image}
+                                            alt={opp.title}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                    ) : (
+                                        <motion.span
+                                            className="text-6xl"
+                                            whileHover={{ scale: 1.2, rotate: -5 }}
+                                            transition={{ type: 'spring', stiffness: 250 }}
+                                        >
+                                            {opp.image}
+                                        </motion.span>
+                                    )}
                                     <div className="absolute top-3 right-3">
                                         <Badge variant="info" size="sm">{opp.category}</Badge>
                                     </div>

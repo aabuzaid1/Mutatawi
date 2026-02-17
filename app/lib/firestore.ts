@@ -15,7 +15,7 @@ import {
     increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Opportunity, Application, UserProfile } from '../types';
+import { Opportunity, Application, UserProfile, Feedback } from '../types';
 
 // ===================== OPPORTUNITIES =====================
 
@@ -221,9 +221,58 @@ export async function getPlatformStats() {
     const organizations = users.filter(u => u.role === 'organization').length;
 
     return {
-        totalVolunteers: volunteers || 150,
-        totalOrganizations: organizations || 25,
-        totalHours: 2500,
-        totalOpportunities: oppsSnap.size || 50,
+        totalVolunteers: volunteers || 200,
+        totalOrganizations: organizations || 5,
+        totalHours: 100,
+        totalOpportunities: oppsSnap.size || 20,
     };
+}
+
+// ===================== FEEDBACK =====================
+
+export async function createFeedback(data: Omit<Feedback, 'id' | 'createdAt'>) {
+    // Check if already submitted feedback
+    const existing = query(
+        collection(db, 'feedbacks'),
+        where('opportunityId', '==', data.opportunityId),
+        where('volunteerId', '==', data.volunteerId)
+    );
+    const existingSnap = await getDocs(existing);
+    if (!existingSnap.empty) {
+        throw new Error('لقد أرسلت تقييمك لهذه الفرصة مسبقاً');
+    }
+
+    const docRef = await addDoc(collection(db, 'feedbacks'), {
+        ...data,
+        createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+}
+
+export async function getFeedbacks(limitCount: number = 10) {
+    const q = query(
+        collection(db, 'feedbacks'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+    })) as Feedback[];
+}
+
+export async function getFeedbacksByOpportunity(opportunityId: string) {
+    const q = query(
+        collection(db, 'feedbacks'),
+        where('opportunityId', '==', opportunityId),
+        orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+    })) as Feedback[];
 }

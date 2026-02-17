@@ -86,9 +86,9 @@ export default function LoginForm() {
                             <input type="checkbox" className="rounded border-slate-300 text-primary-500 w-4 h-4" />
                             <span>تذكرني</span>
                         </label>
-                        <a href="#" className="text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap">
+                        <Link href="/forgot-password" className="text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap">
                             نسيت كلمة المرور؟
-                        </a>
+                        </Link>
                     </div>
 
                     <Button type="submit" variant="primary" className="w-full" loading={loading}>

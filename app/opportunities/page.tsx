@@ -285,14 +285,22 @@ export default function OpportunitiesPage() {
                                     onClick={() => handleApply(opp.id)}
                                 >
                                     {/* Image/Emoji Area */}
-                                    <div className={`h-36 sm:h-40 ${colors.bg} flex items-center justify-center relative overflow-hidden`}>
-                                        <motion.span
-                                            className="text-5xl sm:text-6xl"
-                                            whileHover={{ scale: 1.2, rotate: -5 }}
-                                            transition={{ type: 'spring', stiffness: 250 }}
-                                        >
-                                            {emoji}
-                                        </motion.span>
+                                    <div className={`h-36 sm:h-40 ${opp.imageUrl ? '' : colors.bg} flex items-center justify-center relative overflow-hidden`}>
+                                        {opp.imageUrl ? (
+                                            <img
+                                                src={opp.imageUrl}
+                                                alt={opp.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                        ) : (
+                                            <motion.span
+                                                className="text-5xl sm:text-6xl"
+                                                whileHover={{ scale: 1.2, rotate: -5 }}
+                                                transition={{ type: 'spring', stiffness: 250 }}
+                                            >
+                                                {emoji}
+                                            </motion.span>
+                                        )}
                                         <div className="absolute top-3 right-3">
                                             <Badge variant="info" size="sm">{opp.category}</Badge>
                                         </div>

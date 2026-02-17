@@ -75,14 +75,17 @@ export interface Application {
     updatedAt: Date;
 }
 
-// Testimonial types
-export interface Testimonial {
+// Feedback types (from volunteers after completing opportunities)
+export interface Feedback {
     id: string;
-    name: string;
-    role: string;
-    avatar: string;
-    content: string;
+    opportunityId: string;
+    opportunityTitle: string;
+    volunteerId: string;
+    volunteerName: string;
+    volunteerAvatar?: string;
     rating: number;
+    comment: string;
+    createdAt: Date;
 }
 
 // Stats types

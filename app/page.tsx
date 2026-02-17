@@ -34,7 +34,7 @@ export default function Home() {
                         مستعد لإحداث فرق؟
                     </h2>
                     <p className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl mx-auto">
-                        انضم إلى آلاف المتطوعين الذين يصنعون التغيير كل يوم. سجّل الآن وابدأ رحلتك التطوعية.
+                        انضم إلى مجتمع المتطوعين الذين يصنعون التغيير كل يوم. سجّل الآن وابدأ رحلتك التطوعية.
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-4">
                         <Link href="/register">
