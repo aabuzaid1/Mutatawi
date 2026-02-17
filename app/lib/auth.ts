@@ -80,5 +80,21 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 export async function resetPassword(email: string): Promise<void> {
-    await sendPasswordResetEmail(auth, email);
+    const actionCodeSettings = {
+        url: typeof window !== 'undefined'
+            ? `${window.location.origin}/login`
+            : 'http://localhost:3000/login',
+        handleCodeInApp: false,
+    };
+    try {
+        await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    } catch (error: any) {
+        console.error('Reset password error:', error.code, error.message);
+        // If the continue URI is not authorized, try without it
+        if (error.code === 'auth/unauthorized-continue-uri') {
+            await sendPasswordResetEmail(auth, email);
+            return;
+        }
+        throw error;
+    }
 }

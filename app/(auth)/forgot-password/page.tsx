@@ -29,14 +29,21 @@ export default function ForgotPasswordPage() {
             setStep('sent');
             toast.success('تم إرسال رابط إعادة تعيين كلمة المرور!');
         } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
+            console.error('Forgot password error:', error);
+            const code = error?.code || '';
+            if (code === 'auth/user-not-found') {
                 toast.error('لا يوجد حساب مرتبط بهذا البريد الإلكتروني');
-            } else if (error.code === 'auth/invalid-email') {
+            } else if (code === 'auth/invalid-email') {
                 toast.error('البريد الإلكتروني غير صالح');
-            } else if (error.code === 'auth/too-many-requests') {
+            } else if (code === 'auth/too-many-requests') {
                 toast.error('تم إرسال عدة طلبات. يرجى المحاولة لاحقاً');
+            } else if (code === 'auth/network-request-failed') {
+                toast.error('خطأ في الاتصال. تحقق من اتصالك بالإنترنت');
+            } else if (code === 'auth/unauthorized-continue-uri') {
+                // Still send even without actionCodeSettings
+                toast.error('حدث خطأ في الإعدادات. يرجى التواصل مع الدعم');
             } else {
-                toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
+                toast.error(`حدث خطأ: ${error?.message || 'يرجى المحاولة مرة أخرى'}`);
             }
         } finally {
             setLoading(false);
