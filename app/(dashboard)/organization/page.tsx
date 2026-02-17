@@ -45,6 +45,17 @@ export default function OrganizationDashboard() {
     }, [user]);
 
     const handleDelete = async (oppId: string) => {
+        // Check 48-hour rule
+        const opp = opportunities.find(o => o.id === oppId);
+        if (opp) {
+            const startDateTime = new Date(`${opp.date}T${opp.startTime || '00:00'}`);
+            const hoursUntilStart = (startDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+            if (hoursUntilStart <= 48 && hoursUntilStart > 0) {
+                toast.error('لا يمكن حذف الفرصة قبل أقل من 48 ساعة من موعد البداية ⏰');
+                return;
+            }
+        }
+
         if (!confirm('هل أنت متأكد من حذف هذه الفرصة؟')) return;
         try {
             await deleteOpportunity(oppId);

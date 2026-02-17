@@ -86,14 +86,26 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
             if (imageFile) {
                 try {
                     toast.loading('جار رفع الصورة...', { id: 'upload' });
-                    const storageRef = ref(storage, `opportunities/${Date.now()}_${imageFile.name}`);
+                    console.log('Storage bucket:', storage.app.options.storageBucket);
+                    const fileName = `opportunities/${Date.now()}_${imageFile.name}`;
+                    console.log('Uploading to:', fileName);
+                    const storageRef = ref(storage, fileName);
                     const snapshot = await uploadBytes(storageRef, imageFile);
+                    console.log('Upload complete, getting URL...');
                     imageUrl = await getDownloadURL(snapshot.ref);
+                    console.log('Image URL:', imageUrl);
                     toast.dismiss('upload');
+                    toast.success('تم رفع الصورة بنجاح');
                 } catch (uploadError: any) {
                     toast.dismiss('upload');
-                    console.error('Image upload error:', uploadError);
-                    toast.error('فشل رفع الصورة. سيتم نشر الفرصة بدون صورة.');
+                    console.error('Image upload error:', uploadError.code, uploadError.message);
+                    if (uploadError.code === 'storage/unauthorized') {
+                        toast.error('⚠️ لا توجد صلاحية لرفع الصور. يرجى تحديث قواعد Firebase Storage');
+                    } else if (uploadError.code === 'storage/unknown') {
+                        toast.error('⚠️ خطأ بالـ Storage. تأكد من إعداد storageBucket بملف .env');
+                    } else {
+                        toast.error(`فشل رفع الصورة: ${uploadError.message}`);
+                    }
                     // Continue without image
                 }
             }
