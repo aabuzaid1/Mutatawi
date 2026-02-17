@@ -13,6 +13,7 @@ export default function PostOpportunityPage() {
 
     const handleSubmit = async (data: any) => {
         try {
+            console.log('PostOpportunityPage: submitting...', data);
             await createOpportunity({
                 ...data,
                 organizationId: user?.uid || '',
@@ -21,11 +22,12 @@ export default function PostOpportunityPage() {
                 status: 'open',
                 featured: false,
             });
+            console.log('PostOpportunityPage: success!');
             toast.success('تم نشر الفرصة التطوعية بنجاح! 🎉');
             router.push('/organization');
         } catch (error: any) {
-            toast.error('حدث خطأ أثناء نشر الفرصة. حاول مرة أخرى.');
-            throw error;
+            console.error('PostOpportunityPage error:', error);
+            toast.error(`فشل نشر الفرصة: ${error?.message || 'خطأ غير معروف'}`);
         }
     };
 

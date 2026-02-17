@@ -20,14 +20,21 @@ import { Opportunity, Application, UserProfile, Feedback } from '../types';
 // ===================== OPPORTUNITIES =====================
 
 export async function createOpportunity(data: Omit<Opportunity, 'id' | 'createdAt' | 'updatedAt'>) {
-    const docRef = await addDoc(collection(db, 'opportunities'), {
-        ...data,
-        spotsFilled: 0,
-        status: 'open',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
-    return docRef.id;
+    console.log('createOpportunity called with data:', JSON.stringify(data, null, 2));
+    try {
+        const docRef = await addDoc(collection(db, 'opportunities'), {
+            ...data,
+            spotsFilled: 0,
+            status: 'open',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        console.log('Opportunity created with ID:', docRef.id);
+        return docRef.id;
+    } catch (error: any) {
+        console.error('Firestore createOpportunity error:', error.code, error.message);
+        throw error;
+    }
 }
 
 export async function getOpportunities(filters?: {
