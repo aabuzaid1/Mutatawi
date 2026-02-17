@@ -66,21 +66,27 @@ export default function OpportunityDetailPage() {
         if (id) load();
     }, [id]);
 
+    const isOwner = user?.uid === opportunity?.organizationId;
+
     const handleApply = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !opportunity) return;
 
         setApplyLoading(true);
         try {
-            await createApplication({
+            const applicationData: any = {
                 opportunityId: opportunity.id,
                 opportunityTitle: opportunity.title,
                 volunteerId: user.uid,
                 volunteerName: profile?.displayName || user.displayName || 'متطوع',
                 volunteerEmail: user.email || '',
-                volunteerPhone: formData.phone || undefined,
                 message: formData.message,
-            });
+            };
+            // Only include phone if provided (Firestore rejects undefined)
+            if (formData.phone) {
+                applicationData.volunteerPhone = formData.phone;
+            }
+            await createApplication(applicationData);
             setApplied(true);
             setShowApplyModal(false);
             toast.success('تم تقديم طلبك بنجاح! 🎉');
@@ -322,7 +328,11 @@ export default function OpportunityDetailPage() {
 
                         {/* Apply Button */}
                         <div className="pt-4">
-                            {applied ? (
+                            {isOwner ? (
+                                <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                    <p className="text-slate-500 font-medium">أنت صاحب هذه الفرصة — لا يمكنك التقديم عليها</p>
+                                </div>
+                            ) : applied ? (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
