@@ -11,7 +11,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-    const { user, profile, loading, emailVerified } = useAuth();
+    const { user, profile, loading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -19,12 +19,6 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
         if (!loading) {
             if (!user) {
                 router.push('/login');
-                return;
-            }
-            // Check email verification (skip for Google-authenticated users)
-            const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
-            if (!emailVerified && !isGoogleUser) {
-                router.push('/verify-email');
                 return;
             }
             // Check profile completeness (phone + location)
@@ -38,7 +32,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
                 router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
             }
         }
-    }, [user, profile, loading, requiredRole, emailVerified, router, pathname]);
+    }, [user, profile, loading, requiredRole, router, pathname]);
 
     if (loading) {
         return (
@@ -53,8 +47,6 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
     if (!user) return null;
 
-    const isGoogleUser = user.providerData?.some(p => p.providerId === 'google.com');
-    if (!emailVerified && !isGoogleUser) return null;
     // Allow rendering if on complete-profile page itself
     if (profile && (!profile.phone || !profile.location) && pathname !== '/complete-profile') return null;
     if (requiredRole && profile?.role !== requiredRole) return null;
