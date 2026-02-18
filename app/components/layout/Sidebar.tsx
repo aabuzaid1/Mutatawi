@@ -59,7 +59,14 @@ export default function Sidebar() {
         <>
             {/* Logo */}
             <div className="p-5 sm:p-6 border-b border-slate-100">
-                <Link href="/" className="flex items-center gap-3" onClick={() => setIsMobileOpen(false)}>
+                <button
+                    onClick={() => {
+                        setIsMobileOpen(false);
+                        router.push('/');
+                        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+                    }}
+                    className="flex items-center gap-3 cursor-pointer"
+                >
                     <img src="/logo.png" alt="متطوع" className="w-10 h-10 rounded-full shadow-md" />
                     <div>
                         <h2 className="font-bold text-slate-800">متطوع</h2>
@@ -67,7 +74,7 @@ export default function Sidebar() {
                             {isOrg ? 'حساب المنظمة' : 'حساب المتطوع'}
                         </p>
                     </div>
-                </Link>
+                </button>
             </div>
 
             {/* Navigation */}

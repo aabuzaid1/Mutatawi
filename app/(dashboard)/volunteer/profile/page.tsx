@@ -9,6 +9,7 @@ import {
     IoLocationOutline,
     IoPencilOutline,
     IoSaveOutline,
+    IoLockClosedOutline,
 } from 'react-icons/io5';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
@@ -16,6 +17,7 @@ import Badge from '@/app/components/ui/Badge';
 import { useAuth } from '@/app/hooks/useAuth';
 import { updateUserProfile } from '@/app/lib/firestore';
 import { getApplicationsByVolunteer } from '@/app/lib/firestore';
+import { changePassword } from '@/app/lib/auth';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -31,6 +33,14 @@ export default function ProfilePage() {
         bio: '',
         skills: '',
     });
+
+    // Password change state
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+    });
+    const [changingPassword, setChangingPassword] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -84,6 +94,37 @@ export default function ProfilePage() {
             setSaving(false);
         }
     };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordData.newPassword.length < 6) {
+            toast.error('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+            return;
+        }
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            toast.error('كلمات المرور غير متطابقة');
+            return;
+        }
+        setChangingPassword(true);
+        try {
+            await changePassword(passwordData.currentPassword, passwordData.newPassword);
+            toast.success('تم تغيير كلمة المرور بنجاح! 🔒');
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (error: any) {
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                toast.error('كلمة المرور الحالية غير صحيحة');
+            } else if (error.code === 'auth/weak-password') {
+                toast.error('كلمة المرور الجديدة ضعيفة جداً');
+            } else {
+                toast.error('حدث خطأ أثناء تغيير كلمة المرور');
+            }
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
+    // Check if user signed in with Google (no password to change)
+    const isGoogleUser = user?.providerData?.some(p => p.providerId === 'google.com');
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -206,6 +247,62 @@ export default function ProfilePage() {
                 </div>
             </motion.div>
 
+            {/* Change Password Section */}
+            {!isGoogleUser && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 mt-6"
+                >
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <IoLockClosedOutline size={20} className="text-primary-500" />
+                        تغيير كلمة المرور
+                    </h3>
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <Input
+                            label="كلمة المرور الحالية"
+                            type="password"
+                            placeholder="••••••••"
+                            value={passwordData.currentPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                            icon={<IoLockClosedOutline size={18} />}
+                            required
+                        />
+                        <Input
+                            label="كلمة المرور الجديدة"
+                            type="password"
+                            placeholder="••••••••"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            icon={<IoLockClosedOutline size={18} />}
+                            required
+                        />
+                        <Input
+                            label="تأكيد كلمة المرور الجديدة"
+                            type="password"
+                            placeholder="••••••••"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                            icon={<IoLockClosedOutline size={18} />}
+                            required
+                        />
+                        {passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                            <p className="text-sm text-danger-500">كلمات المرور غير متطابقة</p>
+                        )}
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            className="w-full"
+                            loading={changingPassword}
+                            icon={<IoLockClosedOutline size={16} />}
+                        >
+                            تغيير كلمة المرور
+                        </Button>
+                    </form>
+                </motion.div>
+            )}
+
             {/* Stats */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -232,3 +329,4 @@ export default function ProfilePage() {
         </div>
     );
 }
+

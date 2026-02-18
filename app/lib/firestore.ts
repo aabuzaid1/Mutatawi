@@ -228,6 +228,15 @@ export async function updateApplicationStatus(id: string, status: 'accepted' | '
     });
 }
 
+export async function withdrawApplication(applicationId: string, opportunityId: string) {
+    // Delete the application
+    await deleteDoc(doc(db, 'applications', applicationId));
+    // Decrement spotsFilled
+    await updateDoc(doc(db, 'opportunities', opportunityId), {
+        spotsFilled: increment(-1),
+    });
+}
+
 // ===================== USER PROFILES =====================
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {

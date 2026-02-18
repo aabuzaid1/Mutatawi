@@ -8,6 +8,7 @@ import {
     IoTimeOutline,
     IoHeartOutline,
     IoStarOutline,
+    IoCloseCircleOutline,
 } from 'react-icons/io5';
 import ImpactCard from '@/app/components/dashboard/ImpactCard';
 import Badge from '@/app/components/ui/Badge';
@@ -16,13 +17,15 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import FeedbackModal from '@/app/components/dashboard/FeedbackModal';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getApplicationsByVolunteer } from '@/app/lib/firestore';
+import { getApplicationsByVolunteer, getOpportunity, withdrawApplication } from '@/app/lib/firestore';
 import { Application } from '@/app/types';
+import toast from 'react-hot-toast';
 
 export default function VolunteerDashboard() {
     const { user, profile } = useAuth();
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
+    const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
     const [feedbackModal, setFeedbackModal] = useState<{
         isOpen: boolean;
         opportunityId: string;
@@ -43,6 +46,32 @@ export default function VolunteerDashboard() {
         }
         loadData();
     }, [user]);
+
+    const handleWithdraw = async (app: Application) => {
+        setWithdrawingId(app.id);
+        try {
+            // Fetch the opportunity to check its date
+            const opp = await getOpportunity(app.opportunityId);
+            if (opp && opp.date) {
+                const oppDate = new Date(opp.date);
+                const now = new Date();
+                const hoursUntilStart = (oppDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+                if (hoursUntilStart < 24) {
+                    toast.error('لا يمكن الانسحاب قبل أقل من 24 ساعة من بدء الفرصة ⏰', { duration: 4000 });
+                    setWithdrawingId(null);
+                    return;
+                }
+            }
+            await withdrawApplication(app.id, app.opportunityId);
+            setApplications(prev => prev.filter(a => a.id !== app.id));
+            toast.success('تم سحب طلبك بنجاح');
+        } catch (error) {
+            console.error('Error withdrawing:', error);
+            toast.error('حدث خطأ أثناء سحب الطلب');
+        } finally {
+            setWithdrawingId(null);
+        }
+    };
 
     if (loading) {
         return (
@@ -155,6 +184,17 @@ export default function VolunteerDashboard() {
                                                 قيّم تجربتك
                                             </button>
                                         )}
+
+                                        {(app.status === 'pending' || app.status === 'accepted') && (
+                                            <button
+                                                onClick={() => handleWithdraw(app)}
+                                                disabled={withdrawingId === app.id}
+                                                className="inline-flex items-center gap-1.5 text-xs text-danger-600 hover:text-danger-700 font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                <IoCloseCircleOutline size={14} />
+                                                {withdrawingId === app.id ? 'جاري السحب...' : 'سحب الطلب'}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -186,3 +226,4 @@ export default function VolunteerDashboard() {
         </div>
     );
 }
+

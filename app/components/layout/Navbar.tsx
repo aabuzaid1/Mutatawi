@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoMenuOutline, IoCloseOutline, IoPersonOutline, IoLogInOutline } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
@@ -11,12 +12,22 @@ export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { user, profile } = useAuth();
+    const router = useRouter();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    const handleLogoClick = () => {
+        if (window.location.pathname === '/') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            router.push('/');
+            setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+        }
+    };
 
     const navLinks = [
         { href: '/', label: 'الرئيسية' },
@@ -47,7 +58,7 @@ export default function Navbar() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16 sm:h-20">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-3 group">
+                        <button onClick={handleLogoClick} className="flex items-center gap-3 group cursor-pointer">
                             <motion.div
                                 className="relative"
                                 whileHover={{ scale: 1.05 }}
@@ -63,7 +74,7 @@ export default function Navbar() {
                                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary-400/20 to-secondary-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             </motion.div>
                             <span className="text-xl sm:text-2xl font-bold text-gradient">متطوع</span>
-                        </Link>
+                        </button>
 
                         {/* Desktop Nav Links */}
                         <div className="hidden md:flex items-center gap-8">
