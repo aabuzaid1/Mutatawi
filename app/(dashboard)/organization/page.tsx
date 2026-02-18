@@ -8,6 +8,7 @@ import {
     IoEyeOutline,
     IoTrendingUpOutline,
     IoAddOutline,
+    IoPencilOutline,
 } from 'react-icons/io5';
 import ImpactCard from '@/app/components/dashboard/ImpactCard';
 import Badge from '@/app/components/ui/Badge';
@@ -180,19 +181,27 @@ export default function OrganizationDashboard() {
                                         </div>
                                     </div>
 
-                                    <Link href="/organization/applicants" className="self-start">
-                                        <Button variant="ghost" size="sm">
-                                            عرض المتقدمين
-                                        </Button>
-                                    </Link>
+                                    <div className="flex flex-wrap gap-2 self-start">
+                                        <Link href="/organization/applicants">
+                                            <Button variant="ghost" size="sm">
+                                                عرض المتقدمين
+                                            </Button>
+                                        </Link>
 
-                                    {/* Delete Button */}
-                                    <button
-                                        onClick={() => handleDelete(opp.id)}
-                                        className="self-start text-xs text-danger-600 hover:text-danger-700 font-medium hover:underline transition-colors"
-                                    >
-                                        حذف الفرصة
-                                    </button>
+                                        <Link href={`/organization/edit-opportunity/${opp.id}`}>
+                                            <Button variant="outline" size="sm" icon={<IoPencilOutline />}>
+                                                تعديل الفرصة
+                                            </Button>
+                                        </Link>
+
+                                        {/* Delete Button */}
+                                        <button
+                                            onClick={() => handleDelete(opp.id)}
+                                            className="text-xs text-danger-600 hover:text-danger-700 font-medium hover:underline transition-colors px-3 py-1.5"
+                                        >
+                                            حذف الفرصة
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         ))}

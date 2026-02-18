@@ -19,31 +19,33 @@ import toast from 'react-hot-toast';
 
 interface PostNeedFormProps {
     onSubmit: (data: any) => Promise<void>;
+    initialData?: any;
+    submitLabel?: string;
 }
 
 const categories = [
     'تعليم', 'صحة', 'بيئة', 'مجتمع', 'تقنية', 'رياضة', 'ثقافة', 'إغاثة'
 ];
 
-export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
+export default function PostNeedForm({ onSubmit, initialData, submitLabel }: PostNeedFormProps) {
     const [loading, setLoading] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
     const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        shortDescription: '',
-        category: 'مجتمع',
-        location: '',
-        isRemote: false,
-        date: '',
-        startTime: '',
-        endTime: '',
-        duration: 0,
-        spotsTotal: 10,
-        skills: '',
-        requirements: '',
-        benefits: '',
+        title: initialData?.title || '',
+        description: initialData?.description || '',
+        shortDescription: initialData?.shortDescription || '',
+        category: initialData?.category || 'مجتمع',
+        location: initialData?.location || '',
+        isRemote: initialData?.isRemote || false,
+        date: initialData?.date || '',
+        startTime: initialData?.startTime || '',
+        endTime: initialData?.endTime || '',
+        duration: initialData?.duration || 0,
+        spotsTotal: initialData?.spotsTotal || 10,
+        skills: initialData?.skills ? (Array.isArray(initialData.skills) ? initialData.skills.join(', ') : initialData.skills) : '',
+        requirements: initialData?.requirements ? (Array.isArray(initialData.requirements) ? initialData.requirements.join(', ') : initialData.requirements) : '',
+        benefits: initialData?.benefits ? (Array.isArray(initialData.benefits) ? initialData.benefits.join(', ') : initialData.benefits) : '',
     });
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +82,7 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
         setLoading(true);
 
         try {
-            let imageUrl = '';
+            let imageUrl = initialData?.imageUrl || '';
 
             // Upload image if provided
             if (imageFile) {
@@ -115,9 +117,9 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
                 imageUrl,
                 duration: Number(formData.duration),
                 spotsTotal: Number(formData.spotsTotal),
-                skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean),
-                requirements: formData.requirements.split(',').map(s => s.trim()).filter(Boolean),
-                benefits: formData.benefits.split(',').map(s => s.trim()).filter(Boolean),
+                skills: formData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
+                requirements: formData.requirements.split(',').map((s: string) => s.trim()).filter(Boolean),
+                benefits: formData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
             };
 
             await onSubmit(data);
@@ -367,7 +369,7 @@ export default function PostNeedForm({ onSubmit }: PostNeedFormProps) {
 
             {/* Submit */}
             <Button type="submit" variant="primary" className="w-full" loading={loading}>
-                نشر الفرصة التطوعية
+                {submitLabel || 'نشر الفرصة التطوعية'}
             </Button>
         </motion.form>
     );
