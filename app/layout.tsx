@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from './context/AuthContext';
 import ToastProvider from './components/shared/ToastProvider';
+import ScrollToTop from './components/shared/ScrollToTop';
 
 export const metadata: Metadata = {
     title: 'متطوع | منصة التطوع الأولى',
@@ -19,6 +20,7 @@ export default function RootLayout({
             <body className="font-tajawal antialiased">
                 <AuthProvider>
                     <ToastProvider />
+                    <ScrollToTop />
                     {children}
                 </AuthProvider>
             </body>
