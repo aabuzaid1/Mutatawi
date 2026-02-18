@@ -39,27 +39,9 @@ export default function Hero() {
             <div className="absolute inset-0 gradient-mesh" />
             <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/0 to-white" />
 
-            {/* Floating Elements — slower, smoother easing */}
-            <motion.div
-                animate={{ y: [-20, 20, -20], rotate: [0, 3, 0] }}
-                transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut' }}
-                className="absolute top-32 left-10 w-20 h-20 rounded-2xl bg-primary-500/10 blur-sm hidden lg:block"
-            />
-            <motion.div
-                animate={{ y: [20, -20, 20], rotate: [0, -3, 0] }}
-                transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-                className="absolute bottom-32 right-20 w-32 h-32 rounded-full bg-success-500/10 blur-sm hidden lg:block"
-            />
-            <motion.div
-                animate={{ y: [-12, 12, -12], x: [-6, 6, -6] }}
-                transition={{ repeat: Infinity, duration: 9, ease: 'easeInOut' }}
-                className="absolute top-1/2 left-1/4 w-16 h-16 rounded-full bg-warning-500/10 blur-sm hidden lg:block"
-            />
-            <motion.div
-                animate={{ y: [10, -10, 10], scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 12, ease: 'easeInOut' }}
-                className="absolute top-1/4 right-1/3 w-24 h-24 rounded-full bg-primary-400/5 blur-md hidden lg:block"
-            />
+            {/* Floating Elements — CSS-only for performance */}
+            <div className="absolute top-32 left-10 w-20 h-20 rounded-2xl bg-primary-500/10 blur-sm hidden lg:block animate-[float_10s_ease-in-out_infinite]" />
+            <div className="absolute bottom-32 right-20 w-32 h-32 rounded-full bg-success-500/10 blur-sm hidden lg:block animate-[float_8s_ease-in-out_infinite_reverse]" />
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
                 <div className="grid lg:grid-cols-2 gap-12 items-center">

@@ -11,25 +11,23 @@ function AnimatedCounter({ target, duration = 2.5 }: { target: number; duration?
 
     useEffect(() => {
         if (!isInView) return;
-        let start = 0;
-        const startTime = Date.now();
-        const endTime = startTime + duration * 1000;
+        const startTime = performance.now();
+        let animId: number;
 
-        // Smooth easeOutExpo counter
-        const timer = setInterval(() => {
-            const now = Date.now();
+        const step = (now: number) => {
             const progress = Math.min((now - startTime) / (duration * 1000), 1);
-            const eased = 1 - Math.pow(1 - progress, 4); // easeOutQuart
-            const current = Math.floor(eased * target);
-            setCount(current);
+            const eased = 1 - Math.pow(1 - progress, 4);
+            setCount(Math.floor(eased * target));
 
-            if (progress >= 1) {
+            if (progress < 1) {
+                animId = requestAnimationFrame(step);
+            } else {
                 setCount(target);
-                clearInterval(timer);
             }
-        }, 1000 / 60);
+        };
 
-        return () => clearInterval(timer);
+        animId = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(animId);
     }, [isInView, target, duration]);
 
     return <span ref={ref}>{count.toLocaleString('ar-SA')}</span>;

@@ -39,13 +39,6 @@
     transition-duration: 0.1s;
   }
 
-  /* GPU-accelerated interactive elements */
-  a, button {
-    will-change: transform;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    transform: translateZ(0);
-  }
 
   img {
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
@@ -183,6 +176,19 @@
 
   .animate-delay-500 {
     animation-delay: 500ms;
+  }
+}
+
+/* Float keyframe for decorative elements */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(-15px);
+  }
+
+  50% {
+    transform: translateY(15px);
   }
 }
 

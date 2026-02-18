@@ -54,17 +54,9 @@ export default function HowItWorks() {
 
     return (
         <section id="how-it-works" className="section-padding bg-slate-50 relative overflow-hidden">
-            {/* Background decoration */}
-            <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut' }}
-                className="absolute top-0 left-0 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"
-            />
-            <motion.div
-                animate={{ scale: [1, 1.15, 1] }}
-                transition={{ repeat: Infinity, duration: 12, ease: 'easeInOut' }}
-                className="absolute bottom-0 right-0 w-96 h-96 bg-success-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"
-            />
+            {/* Background decoration — CSS-only */}
+            <div className="absolute top-0 left-0 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-[float_10s_ease-in-out_infinite]" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-success-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-[float_12s_ease-in-out_infinite_reverse]" />
 
             <div className="max-w-7xl mx-auto relative">
                 {/* Header */}
