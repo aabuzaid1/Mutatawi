@@ -2,9 +2,12 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { IoLogoInstagram, IoCallOutline, IoGlobeOutline, IoHeartSharp } from 'react-icons/io5';
+import { IoLogoInstagram, IoCallOutline, IoMailOutline, IoGlobeOutline, IoHeartSharp } from 'react-icons/io5';
+import { useAuth } from '@/app/hooks/useAuth';
 
 export default function Footer() {
+    const { user } = useAuth();
+
     return (
         <footer className="bg-slate-900 text-white relative overflow-hidden">
             {/* Background decoration */}
@@ -31,7 +34,7 @@ export default function Footer() {
                             </p>
                         </motion.div>
 
-                        {/* Quick Links */}
+                        {/* Quick Links + Contact */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
@@ -50,21 +53,25 @@ export default function Footer() {
                                         الفرص التطوعية
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
-                                        سجّل كمتطوع
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
-                                        سجّل منظمتك
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link href="/login" className="text-slate-400 hover:text-white transition-colors text-sm">
-                                        تسجيل الدخول
-                                    </Link>
-                                </li>
+                                {!user && (
+                                    <>
+                                        <li>
+                                            <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                                سجّل كمتطوع
+                                            </Link>
+                                        </li>
+                                        <li>
+                                            <Link href="/register" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                                سجّل منظمتك
+                                            </Link>
+                                        </li>
+                                        <li>
+                                            <Link href="/login" className="text-slate-400 hover:text-white transition-colors text-sm">
+                                                تسجيل الدخول
+                                            </Link>
+                                        </li>
+                                    </>
+                                )}
                             </ul>
                         </motion.div>
 
@@ -79,33 +86,31 @@ export default function Footer() {
                             <ul className="space-y-3">
                                 <li>
                                     <a
-                                        href="tel:0790796457"
+                                        href="tel:+962790796457"
                                         className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
                                     >
                                         <IoCallOutline size={18} />
-                                        <span dir="ltr">0790796457</span>
+                                        <span dir="ltr">+962790796457</span>
                                     </a>
                                 </li>
                                 <li>
                                     <a
-                                        href="https://www.instagram.com/a.abuzaid06?igsh=MWF6MjF0cWcwZGhsYw=="
+                                        href="mailto:mutatawi@gmail.com"
+                                        className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
+                                    >
+                                        <IoMailOutline size={18} />
+                                        <span>mutatawi@gmail.com</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="https://www.instagram.com/mutatawi?igsh=M290bHUwMmR4dzRr"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
                                     >
                                         <IoLogoInstagram size={18} />
-                                        <span>@a.abuzaid06</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
-                                        href="https://abdelrahman-abuzaid-protofolio.vercel.app/?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPNTY3MDY3MzQzMzUyNDI3AAGnlSlTcIb8dlkpOQSrzMVCIylzaNjTXcPO2aQ6O0ANveFC4Kc3W5sjbEmkO7g_aem_Zq8HwN_nf28yZjb_TE7Paw"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors text-sm"
-                                    >
-                                        <IoGlobeOutline size={18} />
-                                        <span>البورتفوليو</span>
+                                        <span>@mutatawi</span>
                                     </a>
                                 </li>
                             </ul>
@@ -115,7 +120,7 @@ export default function Footer() {
 
                 {/* Bottom Bar */}
                 <div className="border-t border-slate-800 py-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-slate-400">
+                    <div className="flex flex-col items-center gap-3 text-sm text-slate-400">
                         <motion.p
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
@@ -133,6 +138,31 @@ export default function Footer() {
                             </a>
                             <IoHeartSharp className="text-red-400" size={14} />
                         </motion.p>
+                        {/* Developer Contact */}
+                        <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
+                            <a href="tel:+962790796457" className="hover:text-slate-300 transition-colors flex items-center gap-1">
+                                <IoCallOutline size={14} />
+                                <span dir="ltr">+962790796457</span>
+                            </a>
+                            <a
+                                href="https://www.instagram.com/mutatawi?igsh=M290bHUwMmR4dzRr"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-slate-300 transition-colors flex items-center gap-1"
+                            >
+                                <IoLogoInstagram size={14} />
+                                @mutatawi
+                            </a>
+                            <a
+                                href="https://abdelrahman-abuzaid-protofolio.vercel.app/?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPNTY3MDY3MzQzMzUyNDI3AAGnlSlTcIb8dlkpOQSrzMVCIylzaNjTXcPO2aQ6O0ANveFC4Kc3W5sjbEmkO7g_aem_Zq8HwN_nf28yZjb_TE7Paw"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-slate-300 transition-colors flex items-center gap-1"
+                            >
+                                <IoGlobeOutline size={14} />
+                                البورتفوليو
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
