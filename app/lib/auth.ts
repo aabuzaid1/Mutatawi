@@ -20,6 +20,27 @@ import { UserProfile } from '../types';
 
 const googleProvider = new GoogleAuthProvider();
 
+/**
+ * استدعاء API أول تسجيل دخول — يرسل إيميل ترحيبي مرة واحدة فقط
+ * Fire-and-forget: لا يؤثر على تجربة المستخدم إذا فشل
+ */
+async function triggerFirstLoginEmail(user: User): Promise<void> {
+    try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/auth/first-login', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        const data = await response.json();
+        console.log('[First Login Email]', data);
+    } catch (error) {
+        console.error('[First Login Email] Failed:', error);
+    }
+}
+
 export async function signUp(
     email: string,
     password: string,
@@ -50,12 +71,8 @@ export async function signUp(
     // Send email verification
     await sendEmailVerification(user);
 
-    // Send welcome email (fire-and-forget)
-    fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'welcome', data: { name: displayName, email, role } }),
-    }).catch(() => { });
+    // إرسال إيميل ترحيبي آمن عبر السيرفر (fire-and-forget)
+    triggerFirstLoginEmail(user).catch(() => { });
 
     return user;
 }
@@ -83,15 +100,8 @@ export async function signInWithGoogle(): Promise<User> {
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
 
-        // Send welcome email for new Google users (fire-and-forget)
-        fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'welcome',
-                data: { name: user.displayName || 'مستخدم جديد', email: user.email, role: 'volunteer' },
-            }),
-        }).catch(() => { });
+        // إرسال إيميل ترحيبي آمن للمستخدمين الجدد عبر جوجل (fire-and-forget)
+        triggerFirstLoginEmail(user).catch(() => { });
     }
 
     return user;

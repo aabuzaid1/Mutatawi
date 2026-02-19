@@ -26,7 +26,8 @@ import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getOpportunity, createApplication, getUserProfileById } from '@/app/lib/firestore';
+import { getOpportunity } from '@/app/lib/firestore';
+import { auth } from '@/app/lib/firebase';
 import { Opportunity } from '@/app/types';
 import { categoryColors } from '@/app/lib/utils';
 import toast from 'react-hot-toast';
@@ -74,54 +75,28 @@ export default function OpportunityDetailPage() {
 
         setApplyLoading(true);
         try {
-            const applicationData: any = {
-                opportunityId: opportunity.id,
-                opportunityTitle: opportunity.title,
-                volunteerId: user.uid,
-                volunteerName: profile?.displayName || user.displayName || 'متطوع',
-                volunteerEmail: user.email || '',
-                message: formData.message,
-            };
-            // Only include phone if provided (Firestore rejects undefined)
-            if (formData.phone) {
-                applicationData.volunteerPhone = formData.phone;
+            // الحصول على Firebase ID Token
+            const idToken = await user.getIdToken();
+
+            // استدعاء API الآمن — السيرفر يتولى كل شيء
+            const response = await fetch('/api/applications/apply', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    opportunityId: opportunity.id,
+                    message: formData.message,
+                    phone: formData.phone || undefined,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'حدث خطأ في التقديم');
             }
-            await createApplication(applicationData);
-
-            // Send email notifications (fire-and-forget)
-            const volunteerEmail = user.email || '';
-            const volunteerName = profile?.displayName || user.displayName || 'متطوع';
-
-            // 1. Confirmation to volunteer
-            if (volunteerEmail) {
-                fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'application-confirmation',
-                        data: { volunteerName, volunteerEmail, opportunityTitle: opportunity.title },
-                    }),
-                }).catch(() => { });
-            }
-
-            // 2. Notification to organization
-            getUserProfileById(opportunity.organizationId).then((orgProfile: { email?: string; displayName?: string } | null) => {
-                if (orgProfile?.email) {
-                    fetch('/api/send-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            type: 'new-application',
-                            data: {
-                                orgEmail: orgProfile.email,
-                                orgName: orgProfile.displayName || 'المنظمة',
-                                volunteerName,
-                                opportunityTitle: opportunity.title,
-                            },
-                        }),
-                    }).catch(() => { });
-                }
-            }).catch(() => { });
 
             setApplied(true);
             setShowApplyModal(false);

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoLogoGoogle } from 'react-icons/io5';
 import { signIn, signInWithGoogle } from '@/app/lib/auth';
 import { getUserProfile } from '@/app/lib/auth';
+import { auth } from '@/app/lib/firebase';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';
@@ -24,6 +25,13 @@ export default function LoginForm() {
         try {
             const user = await signIn(email, password);
 
+            // إرسال إيميل أول تسجيل دخول (fire-and-forget)
+            user.getIdToken().then(token => {
+                fetch('/api/auth/first-login', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                }).catch(() => { });
+            }).catch(() => { });
 
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
@@ -51,6 +59,15 @@ export default function LoginForm() {
     const handleGoogleSignIn = async () => {
         try {
             const user = await signInWithGoogle();
+
+            // إرسال إيميل أول تسجيل دخول (fire-and-forget)
+            user.getIdToken().then(token => {
+                fetch('/api/auth/first-login', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                }).catch(() => { });
+            }).catch(() => { });
+
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
             // If profile is missing phone or location, redirect to complete profile
