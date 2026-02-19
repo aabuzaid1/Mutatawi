@@ -26,6 +26,7 @@ export default function VolunteerDashboard() {
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+    const [oppDates, setOppDates] = useState<Record<string, string>>({});
     const [feedbackModal, setFeedbackModal] = useState<{
         isOpen: boolean;
         opportunityId: string;
@@ -38,6 +39,17 @@ export default function VolunteerDashboard() {
             try {
                 const apps = await getApplicationsByVolunteer(user.uid);
                 setApplications(apps);
+
+                // Fetch dates for accepted apps to know when rating is allowed
+                const acceptedApps = apps.filter(a => a.status === 'accepted');
+                const dates: Record<string, string> = {};
+                await Promise.all(
+                    acceptedApps.map(async (app) => {
+                        const opp = await getOpportunity(app.opportunityId);
+                        if (opp?.date) dates[app.opportunityId] = opp.date;
+                    })
+                );
+                setOppDates(dates);
             } catch (error) {
                 console.error('Error loading data:', error);
             } finally {
@@ -171,7 +183,7 @@ export default function VolunteerDashboard() {
                                             تقدمت بتاريخ {app.appliedAt?.toLocaleDateString?.('ar-SA') || ''}
                                         </span>
 
-                                        {app.status === 'accepted' && (
+                                        {app.status === 'accepted' && oppDates[app.opportunityId] && new Date(oppDates[app.opportunityId]) < new Date() && (
                                             <button
                                                 onClick={() => setFeedbackModal({
                                                     isOpen: true,

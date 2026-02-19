@@ -154,6 +154,15 @@ export default function Footer() {
                                 @mutatawi
                             </a>
                             <a
+                                href="https://www.instagram.com/a.abuzaid06?igsh=MWF6MjF0cWcwZGhsYw=="
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-slate-300 transition-colors flex items-center gap-1"
+                            >
+                                <IoLogoInstagram size={14} />
+                                @a.abuzaid06
+                            </a>
+                            <a
                                 href="https://abdelrahman-abuzaid-protofolio.vercel.app/?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPNTY3MDY3MzQzMzUyNDI3AAGnlSlTcIb8dlkpOQSrzMVCIylzaNjTXcPO2aQ6O0ANveFC4Kc3W5sjbEmkO7g_aem_Zq8HwN_nf28yZjb_TE7Paw"
                                 target="_blank"
                                 rel="noopener noreferrer"
