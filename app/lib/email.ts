@@ -1,6 +1,12 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend() {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 const FROM_EMAIL = 'متطوعي <onboarding@resend.dev>';
 
@@ -13,7 +19,7 @@ export async function sendWelcomeEmail(
   const roleLabel = role === 'volunteer' ? 'متطوع' : 'منظمة';
   const dashboardUrl = role === 'volunteer' ? '/volunteer' : '/organization';
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `مرحباً بك في متطوعي، ${name}! 🎉`,
@@ -66,7 +72,7 @@ export async function sendApplicationConfirmation(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تم تقديم طلبك بنجاح — ${opportunityTitle} ✅`,
@@ -117,7 +123,7 @@ export async function sendNewApplicationNotification(
   volunteerName: string,
   opportunityTitle: string
 ) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: orgEmail,
     subject: `طلب تطوع جديد — ${volunteerName} تقدم لـ "${opportunityTitle}" 📩`,
@@ -170,7 +176,7 @@ export async function sendApplicationAccepted(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `🎉 مبروك! تم قبولك في "${opportunityTitle}"`,
@@ -220,7 +226,7 @@ export async function sendApplicationRejected(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تحديث على طلبك — ${opportunityTitle}`,
