@@ -35,10 +35,27 @@ export default function ApplicantsPage() {
     const handleAccept = async (id: string) => {
         try {
             await updateApplicationStatus(id, 'accepted');
+            const app = applications.find(a => a.id === id);
             setApplications((prev) =>
                 prev.map((app) => (app.id === id ? { ...app, status: 'accepted' as const } : app))
             );
             toast.success('تم قبول المتقدم بنجاح ✅');
+
+            // Send acceptance email (fire-and-forget)
+            if (app?.volunteerEmail) {
+                fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'application-accepted',
+                        data: {
+                            volunteerName: app.volunteerName,
+                            volunteerEmail: app.volunteerEmail,
+                            opportunityTitle: app.opportunityTitle,
+                        },
+                    }),
+                }).catch(() => { });
+            }
         } catch (error) {
             toast.error('حدث خطأ أثناء قبول المتقدم');
         }
@@ -47,10 +64,27 @@ export default function ApplicantsPage() {
     const handleReject = async (id: string) => {
         try {
             await updateApplicationStatus(id, 'rejected');
+            const app = applications.find(a => a.id === id);
             setApplications((prev) =>
                 prev.map((app) => (app.id === id ? { ...app, status: 'rejected' as const } : app))
             );
             toast.success('تم رفض المتقدم');
+
+            // Send rejection email (fire-and-forget)
+            if (app?.volunteerEmail) {
+                fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'application-rejected',
+                        data: {
+                            volunteerName: app.volunteerName,
+                            volunteerEmail: app.volunteerEmail,
+                            opportunityTitle: app.opportunityTitle,
+                        },
+                    }),
+                }).catch(() => { });
+            }
         } catch (error) {
             toast.error('حدث خطأ أثناء رفض المتقدم');
         }

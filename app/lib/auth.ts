@@ -50,6 +50,13 @@ export async function signUp(
     // Send email verification
     await sendEmailVerification(user);
 
+    // Send welcome email (fire-and-forget)
+    fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'welcome', data: { name: displayName, email, role } }),
+    }).catch(() => { });
+
     return user;
 }
 
@@ -75,6 +82,16 @@ export async function signInWithGoogle(): Promise<User> {
             updatedAt: new Date(),
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
+
+        // Send welcome email for new Google users (fire-and-forget)
+        fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'welcome',
+                data: { name: user.displayName || 'مستخدم جديد', email: user.email, role: 'volunteer' },
+            }),
+        }).catch(() => { });
     }
 
     return user;

@@ -346,3 +346,13 @@ export async function getFeedbacksByOpportunity(opportunityId: string) {
         createdAt: doc.data().createdAt?.toDate?.() || new Date(),
     })) as Feedback[];
 }
+
+// ===================== USER PROFILES =====================
+
+export async function getUserProfileById(uid: string): Promise<UserProfile | null> {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists()) {
+        return userDoc.data() as UserProfile;
+    }
+    return null;
+}

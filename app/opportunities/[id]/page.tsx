@@ -26,7 +26,7 @@ import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getOpportunity, createApplication } from '@/app/lib/firestore';
+import { getOpportunity, createApplication, getUserProfileById } from '@/app/lib/firestore';
 import { Opportunity } from '@/app/types';
 import { categoryColors } from '@/app/lib/utils';
 import toast from 'react-hot-toast';
@@ -87,6 +87,42 @@ export default function OpportunityDetailPage() {
                 applicationData.volunteerPhone = formData.phone;
             }
             await createApplication(applicationData);
+
+            // Send email notifications (fire-and-forget)
+            const volunteerEmail = user.email || '';
+            const volunteerName = profile?.displayName || user.displayName || 'متطوع';
+
+            // 1. Confirmation to volunteer
+            if (volunteerEmail) {
+                fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'application-confirmation',
+                        data: { volunteerName, volunteerEmail, opportunityTitle: opportunity.title },
+                    }),
+                }).catch(() => { });
+            }
+
+            // 2. Notification to organization
+            getUserProfileById(opportunity.organizationId).then((orgProfile: { email?: string; displayName?: string } | null) => {
+                if (orgProfile?.email) {
+                    fetch('/api/send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'new-application',
+                            data: {
+                                orgEmail: orgProfile.email,
+                                orgName: orgProfile.displayName || 'المنظمة',
+                                volunteerName,
+                                opportunityTitle: opportunity.title,
+                            },
+                        }),
+                    }).catch(() => { });
+                }
+            }).catch(() => { });
+
             setApplied(true);
             setShowApplyModal(false);
             toast.success('تم تقديم طلبك بنجاح! 🎉');
