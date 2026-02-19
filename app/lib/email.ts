@@ -1,14 +1,21 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-let resendClient: Resend | null = null;
-function getResend() {
-  if (!resendClient) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
+let transporter: nodemailer.Transporter | null = null;
+
+function getTransporter() {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
   }
-  return resendClient;
+  return transporter;
 }
 
-const FROM_EMAIL = 'متطوعي <onboarding@resend.dev>';
+const FROM_EMAIL = `متطوعي <${process.env.SMTP_EMAIL}>`;
 
 // ==================== WELCOME EMAIL ====================
 export async function sendWelcomeEmail(
@@ -19,7 +26,7 @@ export async function sendWelcomeEmail(
   const roleLabel = role === 'volunteer' ? 'متطوع' : 'منظمة';
   const dashboardUrl = role === 'volunteer' ? '/volunteer' : '/organization';
 
-  await getResend().emails.send({
+  await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: email,
     subject: `مرحباً بك في متطوعي، ${name}! 🎉`,
@@ -72,7 +79,7 @@ export async function sendApplicationConfirmation(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await getResend().emails.send({
+  await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تم تقديم طلبك بنجاح — ${opportunityTitle} ✅`,
@@ -123,7 +130,7 @@ export async function sendNewApplicationNotification(
   volunteerName: string,
   opportunityTitle: string
 ) {
-  await getResend().emails.send({
+  await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: orgEmail,
     subject: `طلب تطوع جديد — ${volunteerName} تقدم لـ "${opportunityTitle}" 📩`,
@@ -176,7 +183,7 @@ export async function sendApplicationAccepted(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await getResend().emails.send({
+  await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `🎉 مبروك! تم قبولك في "${opportunityTitle}"`,
@@ -226,7 +233,7 @@ export async function sendApplicationRejected(
   volunteerEmail: string,
   opportunityTitle: string
 ) {
-  await getResend().emails.send({
+  await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تحديث على طلبك — ${opportunityTitle}`,

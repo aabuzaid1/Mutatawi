@@ -151,7 +151,7 @@ export default function Footer() {
                                 className="hover:text-slate-300 transition-colors flex items-center gap-1"
                             >
                                 <IoLogoInstagram size={14} />
-                                @mutatawi
+                                @a.abuzaid06
                             </a>
                             <a
                                 href="https://www.instagram.com/a.abuzaid06?igsh=MWF6MjF0cWcwZGhsYw=="
