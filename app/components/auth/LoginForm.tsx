@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoLogoGoogle } from 'react-icons/io5';
 import { signIn, signInWithGoogle } from '@/app/lib/auth';
 import { getUserProfile } from '@/app/lib/auth';
-import { auth } from '@/app/lib/firebase';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import toast from 'react-hot-toast';

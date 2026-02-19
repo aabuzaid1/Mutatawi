@@ -27,7 +27,6 @@ import Input from '@/app/components/ui/Input';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import { useAuth } from '@/app/hooks/useAuth';
 import { getOpportunity } from '@/app/lib/firestore';
-import { auth } from '@/app/lib/firebase';
 import { Opportunity } from '@/app/types';
 import { categoryColors } from '@/app/lib/utils';
 import toast from 'react-hot-toast';
