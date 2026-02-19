@@ -105,34 +105,6 @@ export default function Hero() {
                             </Link>
                         </motion.div>
 
-                        {/* Trust Indicators */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="mt-10 flex items-center gap-6"
-                        >
-                            <div className="flex -space-x-3 space-x-reverse">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ scale: 0, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        transition={{
-                                            delay: 1 + i * 0.1,
-                                            type: 'spring',
-                                            stiffness: 200,
-                                            damping: 15,
-                                        }}
-                                        className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-                                    >
-                                        {String.fromCharCode(1605 + i)}
-                                    </motion.div>
-                                ))}
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-slate-700">+٢,٥٠٠ متطوع</p>
-                                <p className="text-xs text-slate-400">انضموا هذا الشهر</p>
-                            </div>
-                        </motion.div>
                     </motion.div>
 
                     {/* Illustration — smoother floating */}
