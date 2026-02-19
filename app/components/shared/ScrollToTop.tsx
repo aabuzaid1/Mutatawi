@@ -67,12 +67,9 @@ export default function ScrollToTop() {
                     </svg>
 
                     {/* Arrow icon */}
-                    <motion.div
-                        animate={{ y: [0, -2, 0] }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                    >
+                    <div className="animate-[float_1.5s_ease-in-out_infinite]" style={{ '--tw-translate-y-start': '-2px', '--tw-translate-y-end': '2px' } as React.CSSProperties}>
                         <IoArrowUpOutline className="text-white relative z-10" size={22} />
-                    </motion.div>
+                    </div>
                 </motion.button>
             )}
         </AnimatePresence>

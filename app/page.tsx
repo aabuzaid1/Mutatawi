@@ -1,15 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/landing/Hero';
-import Stats from './components/landing/Stats';
-import HowItWorks from './components/landing/HowItWorks';
-import FeaturedOpps from './components/landing/FeaturedOpps';
-import Testimonials from './components/landing/Testimonials';
 import Footer from './components/layout/Footer';
 import { useAuth } from './hooks/useAuth';
+
+// Lazy-load below-the-fold sections for faster initial page load
+const Stats = dynamic(() => import('./components/landing/Stats'));
+const HowItWorks = dynamic(() => import('./components/landing/HowItWorks'));
+const FeaturedOpps = dynamic(() => import('./components/landing/FeaturedOpps'));
+const Testimonials = dynamic(() => import('./components/landing/Testimonials'));
 
 export default function Home() {
     const { user } = useAuth();

@@ -290,6 +290,7 @@ export default function OpportunitiesPage() {
                                             <img
                                                 src={opp.imageUrl}
                                                 alt={opp.title}
+                                                loading="lazy"
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                             />
                                         ) : (

@@ -144,6 +144,7 @@ export default function OpportunityDetailPage() {
                         <img
                             src={opportunity.imageUrl}
                             alt={opportunity.title}
+                            loading="lazy"
                             className="w-full h-full object-cover"
                         />
                     ) : (
