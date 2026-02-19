@@ -19,6 +19,10 @@ if (getApps().length === 0) {
     if (serviceAccountKey) {
         try {
             const serviceAccount = JSON.parse(serviceAccountKey);
+            // Fix: .env.local may store \\n as literal chars — convert to real newlines
+            if (serviceAccount.private_key) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            }
             app = initializeApp({
                 credential: cert(serviceAccount),
             });
