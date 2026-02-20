@@ -15,9 +15,105 @@ function getTransporter() {
   return transporter;
 }
 
-const FROM_EMAIL = `متطوعي <${process.env.SMTP_EMAIL}>`;
+const FROM_EMAIL = `متطوع <${process.env.SMTP_EMAIL}>`;
+const SITE_URL = 'https://mutatawi.vercel.app';
+const LOGO_URL = `${SITE_URL}/logo.png`;
 
-// ==================== WELCOME EMAIL ====================
+/* ==================== Shared Template Wrapper ==================== */
+
+function emailLayout(options: {
+  headerColor: string;
+  headerTitle: string;
+  headerIcon: string;
+  bodyHtml: string;
+  footerExtra?: string;
+}) {
+  const { headerColor, headerTitle, headerIcon, bodyHtml, footerExtra } = options;
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+
+          <!-- Logo Bar -->
+          <tr>
+            <td style="padding:28px 32px 12px;text-align:center;background:#ffffff;">
+              <img src="${LOGO_URL}" alt="متطوع" width="60" height="60" style="border-radius:12px;display:inline-block;" />
+              <p style="margin:10px 0 0;font-size:22px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">متطوع</p>
+              <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;letter-spacing:1px;">MUTAWWI</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr><td style="padding:0 32px;"><div style="height:1px;background:#e2e8f0;"></div></td></tr>
+
+          <!-- Header Banner -->
+          <tr>
+            <td style="padding:28px 32px 20px;text-align:center;">
+              <div style="display:inline-block;width:56px;height:56px;line-height:56px;border-radius:50%;background:${headerColor};font-size:28px;text-align:center;">${headerIcon}</div>
+              <h1 style="margin:16px 0 0;font-size:22px;font-weight:700;color:#1e293b;">${headerTitle}</h1>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding:0 32px 28px;">
+              ${bodyHtml}
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr><td style="padding:0 32px;"><div style="height:1px;background:#e2e8f0;"></div></td></tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 32px;text-align:center;">
+              ${footerExtra || ''}
+              <p style="margin:8px 0 4px;font-size:13px;color:#94a3b8;">
+                هذا البريد مرسل من منصة <strong style="color:#64748b;">متطوع</strong>
+              </p>
+              <p style="margin:0;font-size:12px;color:#cbd5e1;">
+                <a href="${SITE_URL}" style="color:#6366f1;text-decoration:none;">mutatawi.vercel.app</a>
+              </p>
+              <p style="margin:12px 0 0;font-size:11px;color:#cbd5e1;">© ${new Date().getFullYear()} متطوع — جميع الحقوق محفوظة</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function ctaButton(text: string, url: string, color: string) {
+  return `
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${url}"
+         style="display:inline-block;background:${color};color:#ffffff;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.3px;box-shadow:0 4px 12px ${color}40;">
+        ${text}
+      </a>
+    </div>`;
+}
+
+function infoCard(text: string, bgColor: string, borderColor: string, textColor: string, icon: string) {
+  return `
+    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:12px;padding:16px 20px;margin:20px 0;text-align:center;">
+      <p style="font-size:16px;color:${textColor};font-weight:700;margin:0;">
+        ${icon} ${text}
+      </p>
+    </div>`;
+}
+
+/* ==================== WELCOME EMAIL ==================== */
 export async function sendWelcomeEmail(
   name: string,
   email: string,
@@ -25,254 +121,176 @@ export async function sendWelcomeEmail(
 ) {
   const roleLabel = role === 'volunteer' ? 'متطوع' : 'منظمة';
   const dashboardUrl = role === 'volunteer' ? '/volunteer' : '/organization';
+  const roleEmoji = role === 'volunteer' ? '🤝' : '🏢';
+
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${name}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 12px;">
+      تم تسجيل حسابك بنجاح كـ <strong style="color:#6366f1;">${roleLabel} ${roleEmoji}</strong> في منصة متطوع.
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      ${role === 'volunteer'
+      ? 'يمكنك الآن استكشاف الفرص التطوعية المتاحة والتقدم لها بسهولة.'
+      : 'يمكنك الآن نشر فرص تطوعية جديدة وإدارة المتطوعين من لوحة التحكم.'}
+    </p>
+    ${ctaButton('ابدأ الآن', SITE_URL + dashboardUrl, '#6366f1')}
+  `;
 
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: email,
-    subject: `مرحباً بك في متطوعي، ${name}! 🎉`,
-    html: `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">مرحباً بك في متطوعي! 🎉</h1>
-    </div>
-    <!-- Body -->
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 16px; color: #334155; line-height: 1.8; margin: 0 0 16px;">
-        أهلاً <strong>${name}</strong>،
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 16px;">
-        تم تسجيل حسابك بنجاح كـ <strong>${roleLabel}</strong> في منصة متطوعي.
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 24px;">
-        ${role === 'volunteer'
-        ? 'يمكنك الآن استكشاف الفرص التطوعية المتاحة والتقدم لها.'
-        : 'يمكنك الآن نشر فرص تطوعية وإدارة المتطوعين.'
-      }
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="https://mutatawi.vercel.app${dashboardUrl}" 
-           style="display: inline-block; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px;">
-          الذهاب للوحة التحكم
-        </a>
-      </div>
-    </div>
-    <!-- Footer -->
-    <div style="padding: 20px 24px; background: #f1f5f9; text-align: center;">
-      <p style="font-size: 13px; color: #94a3b8; margin: 0;">
-        فريق متطوعي 💜
-      </p>
-    </div>
-  </div>
-</body>
-</html>`,
+    subject: `مرحباً بك في متطوع، ${name}! 🎉`,
+    html: emailLayout({
+      headerColor: '#eef2ff',
+      headerTitle: 'مرحباً بك في متطوع!',
+      headerIcon: '🎉',
+      bodyHtml,
+    }),
   });
 }
 
-// ==================== APPLICATION CONFIRMATION (to volunteer) ====================
+/* ==================== APPLICATION CONFIRMATION (to volunteer) ==================== */
 export async function sendApplicationConfirmation(
   volunteerName: string,
   volunteerEmail: string,
   opportunityTitle: string
 ) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${volunteerName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      تم تقديم طلبك بنجاح للفرصة التطوعية التالية:
+    </p>
+    ${infoCard(opportunityTitle, '#f0fdf4', '#bbf7d0', '#166534', '📋')}
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      سيتم مراجعة طلبك من قبل المنظمة وسنعلمك بالنتيجة فور صدورها.
+    </p>
+    ${ctaButton('متابعة طلباتي', SITE_URL + '/volunteer', '#10b981')}
+  `;
+
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تم تقديم طلبك بنجاح — ${opportunityTitle} ✅`,
-    html: `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">تم تقديم طلبك بنجاح! ✅</h1>
-    </div>
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 16px; color: #334155; line-height: 1.8; margin: 0 0 16px;">
-        أهلاً <strong>${volunteerName}</strong>،
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 8px;">
-        تم تقديم طلبك للفرصة التطوعية:
-      </p>
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 16px; color: #166534; font-weight: bold; margin: 0;">
-          📋 ${opportunityTitle}
-        </p>
-      </div>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 16px 0;">
-        سيتم مراجعة طلبك من قبل المنظمة وسيتم إبلاغك بالنتيجة. يمكنك متابعة حالة طلبك من لوحة التحكم.
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="https://mutatawi.vercel.app/volunteer" 
-           style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px;">
-          متابعة طلباتي
-        </a>
-      </div>
-    </div>
-    <div style="padding: 20px 24px; background: #f1f5f9; text-align: center;">
-      <p style="font-size: 13px; color: #94a3b8; margin: 0;">فريق متطوعي 💜</p>
-    </div>
-  </div>
-</body>
-</html>`,
+    html: emailLayout({
+      headerColor: '#ecfdf5',
+      headerTitle: 'تم تقديم طلبك بنجاح!',
+      headerIcon: '✅',
+      bodyHtml,
+    }),
   });
 }
 
-// ==================== NEW APPLICATION NOTIFICATION (to organization) ====================
+/* ==================== NEW APPLICATION NOTIFICATION (to organization) ==================== */
 export async function sendNewApplicationNotification(
   orgEmail: string,
   orgName: string,
   volunteerName: string,
   opportunityTitle: string
 ) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${orgName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 12px;">
+      لديك طلب تطوع جديد:
+    </p>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px 20px;margin:20px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-size:14px;color:#92400e;padding:4px 0;"><strong>👤 المتطوع:</strong></td>
+          <td style="font-size:14px;color:#92400e;padding:4px 0;text-align:left;font-weight:700;">${volunteerName}</td>
+        </tr>
+        <tr>
+          <td style="font-size:14px;color:#92400e;padding:4px 0;"><strong>📋 الفرصة:</strong></td>
+          <td style="font-size:14px;color:#92400e;padding:4px 0;text-align:left;font-weight:700;">${opportunityTitle}</td>
+        </tr>
+      </table>
+    </div>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      يمكنك مراجعة الطلب وقبوله أو رفضه من لوحة التحكم.
+    </p>
+    ${ctaButton('مراجعة الطلبات', SITE_URL + '/organization', '#f59e0b')}
+  `;
+
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: orgEmail,
     subject: `طلب تطوع جديد — ${volunteerName} تقدم لـ "${opportunityTitle}" 📩`,
-    html: `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">طلب تطوع جديد! 📩</h1>
-    </div>
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 16px; color: #334155; line-height: 1.8; margin: 0 0 16px;">
-        أهلاً <strong>${orgName}</strong>،
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 16px;">
-        تقدم متطوع جديد لإحدى فرصكم:
-      </p>
-      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 14px; color: #92400e; margin: 0 0 8px;">
-          👤 <strong>${volunteerName}</strong>
-        </p>
-        <p style="font-size: 14px; color: #92400e; margin: 0;">
-          📋 <strong>${opportunityTitle}</strong>
-        </p>
-      </div>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 16px 0;">
-        يمكنك مراجعة الطلب وقبوله أو رفضه من لوحة التحكم.
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="https://mutatawi.vercel.app/organization" 
-           style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px;">
-          مراجعة الطلبات
-        </a>
-      </div>
-    </div>
-    <div style="padding: 20px 24px; background: #f1f5f9; text-align: center;">
-      <p style="font-size: 13px; color: #94a3b8; margin: 0;">فريق متطوعي 💜</p>
-    </div>
-  </div>
-</body>
-</html>`,
+    html: emailLayout({
+      headerColor: '#fefce8',
+      headerTitle: 'طلب تطوع جديد!',
+      headerIcon: '📩',
+      bodyHtml,
+    }),
   });
 }
 
-// ==================== APPLICATION ACCEPTED (to volunteer) ====================
+/* ==================== APPLICATION ACCEPTED (to volunteer) ==================== */
 export async function sendApplicationAccepted(
   volunteerName: string,
   volunteerEmail: string,
   opportunityTitle: string
 ) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${volunteerName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      يسعدنا إبلاغك بأنه تم <strong style="color:#059669;">قبول طلبك</strong> للفرصة التطوعية:
+    </p>
+    ${infoCard(opportunityTitle, '#f0fdf4', '#bbf7d0', '#166534', '🎊')}
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      سيتم التواصل معك قريباً بالتفاصيل. شكراً لمساهمتك في العمل التطوعي! 💪
+    </p>
+    ${ctaButton('عرض طلباتي', SITE_URL + '/volunteer', '#10b981')}
+  `;
+
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `🎉 مبروك! تم قبولك في "${opportunityTitle}"`,
-    html: `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">مبروك! تم قبولك 🎉</h1>
-    </div>
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 16px; color: #334155; line-height: 1.8; margin: 0 0 16px;">
-        أهلاً <strong>${volunteerName}</strong>،
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 16px;">
-        يسعدنا إبلاغك بأنه تم <strong style="color: #059669;">قبول طلبك</strong> للفرصة التطوعية:
-      </p>
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 16px; color: #166534; font-weight: bold; margin: 0;">
-          📋 ${opportunityTitle}
-        </p>
-      </div>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 16px 0;">
-        سيتم التواصل معك قريباً بالتفاصيل. شكراً لمساهمتك في العمل التطوعي! 💪
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="https://mutatawi.vercel.app/volunteer" 
-           style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px;">
-          عرض طلباتي
-        </a>
-      </div>
-    </div>
-    <div style="padding: 20px 24px; background: #f1f5f9; text-align: center;">
-      <p style="font-size: 13px; color: #94a3b8; margin: 0;">فريق متطوعي 💜</p>
-    </div>
-  </div>
-</body>
-</html>`,
+    html: emailLayout({
+      headerColor: '#ecfdf5',
+      headerTitle: 'مبروك! تم قبولك 🎉',
+      headerIcon: '🏆',
+      bodyHtml,
+    }),
   });
 }
 
-// ==================== APPLICATION REJECTED (to volunteer) ====================
+/* ==================== APPLICATION REJECTED (to volunteer) ==================== */
 export async function sendApplicationRejected(
   volunteerName: string,
   volunteerEmail: string,
   opportunityTitle: string
 ) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${volunteerName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      نشكرك على اهتمامك بالفرصة التطوعية:
+    </p>
+    ${infoCard(opportunityTitle, '#f1f5f9', '#e2e8f0', '#475569', '📋')}
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      للأسف، لم يتم قبول طلبك في هذه المرة. لا تقلق — هناك فرص تطوعية كثيرة بانتظارك!
+    </p>
+    ${ctaButton('استكشاف فرص أخرى', SITE_URL + '/opportunities', '#6366f1')}
+  `;
+
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تحديث على طلبك — ${opportunityTitle}`,
-    html: `
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 40px 20px; margin: 0;">
-  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background: linear-gradient(135deg, #64748b, #475569); padding: 32px 24px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">تحديث على طلبك</h1>
-    </div>
-    <div style="padding: 32px 24px;">
-      <p style="font-size: 16px; color: #334155; line-height: 1.8; margin: 0 0 16px;">
-        أهلاً <strong>${volunteerName}</strong>،
-      </p>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 0 0 16px;">
-        نشكرك على اهتمامك بالفرصة التطوعية:
-      </p>
-      <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <p style="font-size: 16px; color: #475569; font-weight: bold; margin: 0;">
-          📋 ${opportunityTitle}
-        </p>
-      </div>
-      <p style="font-size: 15px; color: #475569; line-height: 1.8; margin: 16px 0;">
-        للأسف، لم يتم قبول طلبك في هذه المرة. لا تقلق! هناك فرص تطوعية أخرى كثيرة بانتظارك.
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="https://mutatawi.vercel.app/opportunities" 
-           style="display: inline-block; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px;">
-          استكشاف فرص أخرى
-        </a>
-      </div>
-    </div>
-    <div style="padding: 20px 24px; background: #f1f5f9; text-align: center;">
-      <p style="font-size: 13px; color: #94a3b8; margin: 0;">فريق متطوعي 💜</p>
-    </div>
-  </div>
-</body>
-</html>`,
+    html: emailLayout({
+      headerColor: '#f8fafc',
+      headerTitle: 'تحديث على طلبك',
+      headerIcon: '📝',
+      bodyHtml,
+    }),
   });
 }
