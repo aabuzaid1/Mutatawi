@@ -1,3 +1,9 @@
+/**
+ * @fileoverview الصفحة الرئيسية للتطبيق (Landing Page).
+ * تستعرض الواجهة التسويقية والخدمات باستخدام تقنيات التحميل الكسول (Lazy-loading)
+ * لعرض الأقسام غير الظاهرة مبدئياً وتسريع وقت التحميل (LCP).
+ */
+
 'use client';
 
 import Link from 'next/link';
@@ -14,6 +20,13 @@ const HowItWorks = dynamic(() => import('./components/landing/HowItWorks'));
 const FeaturedOpps = dynamic(() => import('./components/landing/FeaturedOpps'));
 const Testimonials = dynamic(() => import('./components/landing/Testimonials'));
 
+/**
+ * مكون الصفحة الرئيسية.
+ * يعرض الترويسة، الإحصائيات، طريقة العمل، وآراء المستخدمين.
+ * يراقب حالة المصادقة عبر `useAuth` لإخفاء قسم "الدعوة للتسجيل (CTA)" للمستخدمين المسجلين مسبقاً.
+ * 
+ * @returns {JSX.Element} واجهة الصفحة الرئيسية.
+ */
 export default function Home() {
     const { user } = useAuth();
 
