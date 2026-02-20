@@ -8,7 +8,7 @@
  *   - يمنع التقديم المكرر (composite doc ID)
  *   - يتحقق أن المستخدم هو المتطوع الفعلي
  * 
- * Body: { opportunityId: string, message: string, phone?: string }
+ * Body: { opportunityId: string, message?: string, phone?: string }
  * Headers: Authorization: Bearer <idToken>
  */
 
@@ -59,11 +59,12 @@ export async function POST(request: NextRequest) {
 
         // ========== 2. قراءة Body ==========
         const body = await request.json();
-        const { opportunityId, message, phone } = body;
+        const { opportunityId, phone } = body;
+        const message = body.message || 'أرغب بالتطوع في هذه الفرصة';
 
-        if (!opportunityId || !message) {
+        if (!opportunityId) {
             return NextResponse.json(
-                { error: 'opportunityId and message are required' },
+                { error: 'opportunityId is required' },
                 { status: 400 }
             );
         }
