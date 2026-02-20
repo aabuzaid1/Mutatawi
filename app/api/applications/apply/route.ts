@@ -35,10 +35,12 @@ export async function POST(request: NextRequest) {
         let decodedToken;
         try {
             decodedToken = await adminAuth.verifyIdToken(idToken);
-        } catch (error) {
-            console.error('[Apply API] Token verification failed:', error);
+        } catch (error: any) {
+            console.error('[Apply API] Token verification failed:', error?.message || error);
+            console.error('[Apply API] FIREBASE_CLIENT_EMAIL set?', !!process.env.FIREBASE_CLIENT_EMAIL);
+            console.error('[Apply API] FIREBASE_PRIVATE_KEY set?', !!process.env.FIREBASE_PRIVATE_KEY);
             return NextResponse.json(
-                { error: 'Invalid or expired token' },
+                { error: 'Invalid or expired token', detail: error?.message || 'Unknown' },
                 { status: 401 }
             );
         }
