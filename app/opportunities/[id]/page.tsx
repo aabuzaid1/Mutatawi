@@ -16,7 +16,9 @@ import {
     IoRibbonOutline,
     IoShieldCheckmarkOutline,
     IoStarOutline,
+    IoCloseCircleOutline,
 } from 'react-icons/io5';
+import { db } from '@/app/lib/firebase';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import Badge from '@/app/components/ui/Badge';
@@ -41,6 +43,9 @@ export default function OpportunityDetailPage() {
     const [loading, setLoading] = useState(true);
     const [applyLoading, setApplyLoading] = useState(false);
     const [applied, setApplied] = useState(false);
+    const [withdrawLoading, setWithdrawLoading] = useState(false);
+    const [applicationId, setApplicationId] = useState<string | null>(null);
+    const [checkingApplication, setCheckingApplication] = useState(true);
 
     const id = params.id as string;
 
@@ -57,6 +62,31 @@ export default function OpportunityDetailPage() {
         }
         if (id) load();
     }, [id]);
+
+    // Check if user already applied
+    useEffect(() => {
+        async function checkExistingApplication() {
+            if (!user || !id) {
+                setCheckingApplication(false);
+                return;
+            }
+            try {
+                const docId = `${id}_${user.uid}`;
+                const { doc: firestoreDoc, getDoc } = await import('firebase/firestore');
+                const appDocRef = firestoreDoc(db, 'applications', docId);
+                const appDocSnap = await getDoc(appDocRef);
+                if (appDocSnap.exists()) {
+                    setApplied(true);
+                    setApplicationId(docId);
+                }
+            } catch (error) {
+                console.error('Error checking application:', error);
+            } finally {
+                setCheckingApplication(false);
+            }
+        }
+        checkExistingApplication();
+    }, [user, id]);
 
     const isOwner = user?.uid === opportunity?.organizationId;
 
@@ -94,6 +124,58 @@ export default function OpportunityDetailPage() {
             }
         } finally {
             setApplyLoading(false);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        if (!user || !opportunity || !applicationId) return;
+
+        // Check 12 hour rule client-side for instant feedback
+        const oppDateStr = opportunity.date;
+        const oppStartTime = opportunity.startTime;
+        let oppDateTime: Date;
+        if (oppDateStr && oppStartTime) {
+            oppDateTime = new Date(`${oppDateStr}T${oppStartTime}:00`);
+        } else if (oppDateStr) {
+            oppDateTime = new Date(`${oppDateStr}T00:00:00`);
+        } else {
+            oppDateTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
+        const hoursRemaining = (oppDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursRemaining < 12) {
+            toast.error('لا يمكن الانسحاب قبل أقل من 12 ساعة من موعد الفرصة');
+            return;
+        }
+
+        setWithdrawLoading(true);
+        try {
+            const idToken = await user.getIdToken();
+            const response = await fetch('/api/applications/withdraw', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    applicationId,
+                    opportunityId: opportunity.id,
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'حدث خطأ');
+            }
+
+            setApplied(false);
+            setApplicationId(null);
+            // Update spots locally
+            setOpportunity(prev => prev ? { ...prev, spotsFilled: Math.max(0, (prev.spotsFilled || 1) - 1) } : prev);
+            toast.success('تم سحب طلبك بنجاح');
+        } catch (error: any) {
+            toast.error(error.message || 'حدث خطأ أثناء سحب الطلب');
+        } finally {
+            setWithdrawLoading(false);
         }
     };
 
@@ -323,7 +405,7 @@ export default function OpportunityDetailPage() {
                             </p>
                         </div>
 
-                        {/* Apply Button */}
+                        {/* Apply / Applied Status */}
                         <div className="pt-4">
                             {isOwner ? (
                                 <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -333,11 +415,24 @@ export default function OpportunityDetailPage() {
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="text-center p-6 bg-success-50 rounded-xl border border-success-100"
+                                    className="text-center p-6 bg-success-50 rounded-xl border border-success-100 space-y-3"
                                 >
-                                    <IoCheckmarkCircleOutline className="mx-auto text-success-500 mb-2" size={40} />
-                                    <p className="text-success-700 font-bold">تم تقديم طلبك بنجاح! ✅</p>
-                                    <p className="text-success-600 text-sm mt-1">سيتم مراجعة طلبك من قبل المنظمة</p>
+                                    <IoCheckmarkCircleOutline className="mx-auto text-success-500 mb-1" size={40} />
+                                    <p className="text-success-700 font-bold text-lg">أنت مقدم على هذه الفرصة ✅</p>
+                                    <p className="text-success-600 text-sm">سيتم مراجعة طلبك من قبل المنظمة</p>
+                                    <button
+                                        onClick={handleWithdraw}
+                                        disabled={withdrawLoading}
+                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50"
+                                    >
+                                        {withdrawLoading ? (
+                                            <LoadingSpinner size="sm" />
+                                        ) : (
+                                            <IoCloseCircleOutline size={18} />
+                                        )}
+                                        سحب الطلب
+                                    </button>
+                                    <p className="text-xs text-slate-400">يمكنك سحب طلبك قبل 12 ساعة من موعد الفرصة</p>
                                 </motion.div>
                             ) : spotsLeft <= 0 ? (
                                 <Button variant="outline" className="w-full" disabled>
@@ -349,6 +444,10 @@ export default function OpportunityDetailPage() {
                                         سجّل دخولك للتقديم
                                     </Button>
                                 </Link>
+                            ) : checkingApplication ? (
+                                <div className="flex justify-center py-4">
+                                    <LoadingSpinner size="sm" />
+                                </div>
                             ) : (
                                 <Button
                                     variant="primary"
