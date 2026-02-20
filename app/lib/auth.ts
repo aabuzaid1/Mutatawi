@@ -1,3 +1,8 @@
+/**
+ * @fileoverview وحدة إدارة المصادقة والمستخدمين (Authentication & User Management)
+ * تحتوي هذه الوحدة على دوال للتعامل مع Firebase Auth لبناء الحسابات، الدخول، الخروج، واستعادة كلمة المرور.
+ */
+
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -21,8 +26,12 @@ import { UserProfile } from '../types';
 const googleProvider = new GoogleAuthProvider();
 
 /**
- * استدعاء API أول تسجيل دخول — يرسل إيميل ترحيبي مرة واحدة فقط
- * Fire-and-forget: لا يؤثر على تجربة المستخدم إذا فشل
+ * تستدعي مسار الـ API الخاص بأول تسجيل دخول للمستخدم.
+ * تقوم بإرسال إيميل ترحيبي مرة واحدة فقط (Idempotent).
+ * وتعمل بنظام (Fire-and-Forget) بحيث لا تؤخر واجهة المستخدم حتى لو فشلت.
+ * 
+ * @param {User} user - كائن المستخدم من Firebase Auth.
+ * @returns {Promise<void>} 
  */
 async function triggerFirstLoginEmail(user: User): Promise<void> {
     try {
@@ -41,6 +50,20 @@ async function triggerFirstLoginEmail(user: User): Promise<void> {
     }
 }
 
+/**
+ * إنشاء حساب جديد للمستخدم (تسجيل - Sign Up).
+ * تقوم الدالة بإنشاء החשבון في Firebase Auth، ثم بناء وثيقة التعريف (Profile)
+ * في Firestore، وأخيراً ترسل رسائل الترحيب والتحقق.
+ * 
+ * @param {string} email - البريد الإلكتروني للمستخدم.
+ * @param {string} password - كلمة المرور.
+ * @param {string} displayName - الاسم الكامل (للمتطوع أو المنظمة).
+ * @param {'volunteer' | 'organization'} role - نوع الحساب لتحديد الصلاحيات.
+ * @param {string} [phone] - رقم الهاتف (اختياري).
+ * @param {string} [governorate] - المحافظة أو الموقع المدخل (اختياري).
+ * @returns {Promise<User>} كائن المستخدم المُنشأ للتو.
+ * @throws {Error} في حال كان الإيميل مستخدماً أو كلمة المرور ضعيفة.
+ */
 export async function signUp(
     email: string,
     password: string,
@@ -77,11 +100,25 @@ export async function signUp(
     return user;
 }
 
+/**
+ * تسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور.
+ * 
+ * @param {string} email - البريد الإلكتروني المُسجل.
+ * @param {string} password - كلمة المرور المطابقة.
+ * @returns {Promise<User>} كائن المستخدم بعد نجاح الدخول.
+ * @throws {Error} في حال كانت بيانات الدخول خاطئة أو الحساب غير موجود.
+ */
 export async function signIn(email: string, password: string): Promise<User> {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
 }
 
+/**
+ * تسجيل الدخول وإنشاء الحساب باستخدام نافذة جوجل المنبثقة (Google OAuth).
+ * تقوم بإنشاء حساب في قاعدة البيانات (Firestore) إذا كان الدخول لأول مرة.
+ * 
+ * @returns {Promise<User>} كائن المستخدم المصادق عليه من جوجل.
+ */
 export async function signInWithGoogle(): Promise<User> {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
@@ -107,10 +144,21 @@ export async function signInWithGoogle(): Promise<User> {
     return user;
 }
 
+/**
+ * تسجيل الخروج من النظام (Sign Out).
+ * 
+ * @returns {Promise<void>}
+ */
 export async function signOut(): Promise<void> {
     await firebaseSignOut(auth);
 }
 
+/**
+ * الحصول على البيانات التفصيلية لملف المستخدم من قاعدة البيانات (Firestore).
+ * 
+ * @param {string} uid - المعرف الفريد للمستخدم (User ID).
+ * @returns {Promise<UserProfile | null>} بيانات المستخدم إن وجدت، أو null إن لم يكن لديه وثيقة.
+ */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
@@ -119,6 +167,14 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     return null;
 }
 
+/**
+ * إرسال رابط إعادة تعيين كلمة المرور إلى البريد الإلكتروني للمستخدم،
+ * مع تحديد إعادة التوجيه للرابط المناسب محلياً أو حياً للتطبيق.
+ * 
+ * @param {string} email - البريد المراد استعادة المرور له.
+ * @returns {Promise<void>}
+ * @throws {Error} إذا كان البريد غير مسجل.
+ */
 export async function resetPassword(email: string): Promise<void> {
     const actionCodeSettings = {
         url: typeof window !== 'undefined'
@@ -138,18 +194,35 @@ export async function resetPassword(email: string): Promise<void> {
     }
 }
 
-// Verify the reset code from the email link
+/**
+ * التحقق من رمز الاسترداد (Reset Code) القادم من رابط الإيميل.
+ * 
+ * @param {string} code - الرمز المرسل ضمن الـ URL.
+ * @returns {Promise<string>} البريد الإلكتروني المرتبط بالرمز إذا كان صالحاً.
+ * @throws {Error} إذا كان الرمز منتهي الصلاحية أو غير صحيح.
+ */
 export async function verifyResetCode(code: string): Promise<string> {
     const email = await verifyPasswordResetCode(auth, code);
     return email;
 }
 
-// Confirm the new password with the reset code
+/**
+ * تأكيد تعيين كلمة المرور الجديدة باستخدام رمز الاسترداد المقبول.
+ * 
+ * @param {string} code - رمز الاسترداد.
+ * @param {string} newPassword - الكلمة السرية الجديدة المرغوبة.
+ * @returns {Promise<void>}
+ */
 export async function confirmReset(code: string, newPassword: string): Promise<void> {
     await confirmPasswordReset(auth, code, newPassword);
 }
 
-// Resend email verification
+/**
+ * إعادة إرسال إيميل تفعيل الحساب (Verification Email) للمستخدم المسجل الدخول حالياً
+ * إذا لم يقم بتفعيل حسابه مسبقاً.
+ * 
+ * @returns {Promise<void>}
+ */
 export async function resendVerificationEmail(): Promise<void> {
     const user = auth.currentUser;
     if (user && !user.emailVerified) {
@@ -157,7 +230,15 @@ export async function resendVerificationEmail(): Promise<void> {
     }
 }
 
-// Change password for logged-in user
+/**
+ * تغيير كلمة المرور للمستخدم النشط حالياً (من لوحة التحكم).
+ * يتطلب إعادة المصادقة (Re-authentication) بالكلمة القديمة لضمان الأمان.
+ * 
+ * @param {string} currentPassword - الكلمة السرية الحالية للتحقق من هويته.
+ * @param {string} newPassword - الكلمة السرية الجديدة.
+ * @returns {Promise<void>}
+ * @throws {Error} إذا كانت كلمة المرور القديمة خاطئة أو لم يُعثر على مُستخدم.
+ */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
     const user = auth.currentUser;
     if (!user || !user.email) {
