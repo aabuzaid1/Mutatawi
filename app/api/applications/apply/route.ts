@@ -15,6 +15,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/app/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+
+export const runtime = 'nodejs';
+
 import {
     sendApplicationConfirmation,
     sendNewApplicationNotification,

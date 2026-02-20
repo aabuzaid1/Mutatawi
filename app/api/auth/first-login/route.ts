@@ -15,6 +15,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/app/lib/firebase-admin';
 import { sendWelcomeEmail } from '@/app/lib/email';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
     try {
         // ========== 1. استخراج والتحقق من Token ==========
