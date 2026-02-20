@@ -19,7 +19,7 @@ let app: App;
 if (getApps().length === 0) {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'mutatawi-2b96f';
 
     if (clientEmail && privateKey) {
         // === الطريقة 1: متغيرات منفصلة (الأفضل لـ Vercel) ===
