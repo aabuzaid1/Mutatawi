@@ -11,9 +11,7 @@ import {
     IoPeopleOutline,
     IoArrowBackOutline,
     IoCheckmarkCircleOutline,
-    IoCloseOutline,
     IoSendOutline,
-    IoCallOutline,
     IoMailOutline,
     IoRibbonOutline,
     IoShieldCheckmarkOutline,
@@ -23,7 +21,6 @@ import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import Badge from '@/app/components/ui/Badge';
 import Button from '@/app/components/ui/Button';
-import Input from '@/app/components/ui/Input';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import { useAuth } from '@/app/hooks/useAuth';
 import { getOpportunity } from '@/app/lib/firestore';
@@ -42,13 +39,8 @@ export default function OpportunityDetailPage() {
     const { user, profile } = useAuth();
     const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showApplyModal, setShowApplyModal] = useState(false);
     const [applyLoading, setApplyLoading] = useState(false);
     const [applied, setApplied] = useState(false);
-    const [formData, setFormData] = useState({
-        message: '',
-        phone: '',
-    });
 
     const id = params.id as string;
 
@@ -68,16 +60,13 @@ export default function OpportunityDetailPage() {
 
     const isOwner = user?.uid === opportunity?.organizationId;
 
-    const handleApply = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleApply = async () => {
         if (!user || !opportunity) return;
 
         setApplyLoading(true);
         try {
-            // الحصول على Firebase ID Token
             const idToken = await user.getIdToken();
 
-            // استدعاء API الآمن — السيرفر يتولى كل شيء
             const response = await fetch('/api/applications/apply', {
                 method: 'POST',
                 headers: {
@@ -86,8 +75,6 @@ export default function OpportunityDetailPage() {
                 },
                 body: JSON.stringify({
                     opportunityId: opportunity.id,
-                    message: formData.message,
-                    phone: formData.phone || undefined,
                 }),
             });
 
@@ -98,7 +85,6 @@ export default function OpportunityDetailPage() {
             }
 
             setApplied(true);
-            setShowApplyModal(false);
             toast.success('تم تقديم طلبك بنجاح! 🎉');
         } catch (error: any) {
             if (error.message?.includes('مسبقاً')) {
@@ -368,7 +354,8 @@ export default function OpportunityDetailPage() {
                                     variant="primary"
                                     className="w-full"
                                     size="lg"
-                                    onClick={() => setShowApplyModal(true)}
+                                    onClick={handleApply}
+                                    loading={applyLoading}
                                     icon={<IoSendOutline size={18} />}
                                 >
                                     تقدم لهذه الفرصة
@@ -379,88 +366,7 @@ export default function OpportunityDetailPage() {
                 </motion.div>
             </section>
 
-            {/* Apply Modal */}
-            <AnimatePresence>
-                {showApplyModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setShowApplyModal(false)}
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Modal Header */}
-                            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                                <h3 className="text-lg font-bold text-slate-800">التقديم للفرصة</h3>
-                                <button
-                                    onClick={() => setShowApplyModal(false)}
-                                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                                >
-                                    <IoCloseOutline size={18} />
-                                </button>
-                            </div>
 
-                            {/* Modal Body */}
-                            <form onSubmit={handleApply} className="p-5 space-y-4">
-                                <div className="bg-primary-50 rounded-xl p-3 text-sm text-primary-700">
-                                    <p className="font-bold mb-1">{opportunity.title}</p>
-                                    <p className="text-primary-500">{opportunity.organizationName}</p>
-                                </div>
-
-                                <Input
-                                    label="رقم الهاتف (اختياري)"
-                                    type="tel"
-                                    placeholder="05XXXXXXXX"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                    icon={<IoCallOutline size={18} />}
-                                />
-
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">
-                                        رسالة التقديم *
-                                    </label>
-                                    <textarea
-                                        placeholder="اكتب لماذا ترغب بالانضمام لهذه الفرصة..."
-                                        value={formData.message}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                                        rows={4}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none resize-none text-sm"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="flex gap-3 pt-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() => setShowApplyModal(false)}
-                                    >
-                                        إلغاء
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        className="flex-1"
-                                        loading={applyLoading}
-                                        icon={<IoSendOutline size={16} />}
-                                    >
-                                        إرسال الطلب
-                                    </Button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <Footer />
         </main>
