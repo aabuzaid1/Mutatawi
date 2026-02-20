@@ -32,10 +32,15 @@ export async function POST(request: NextRequest) {
         let decodedToken;
         try {
             decodedToken = await adminAuth.verifyIdToken(idToken);
-        } catch (error) {
-            console.error('[First Login API] Token verification failed:', error);
+        } catch (error: any) {
+            const msg = error?.message || 'Unknown error';
+            console.error('[First Login API] verifyIdToken failed:', msg);
+
+            if (msg.includes('credentials') || msg.includes('FIREBASE') || msg.includes('Could not load')) {
+                return NextResponse.json({ error: msg }, { status: 500 });
+            }
             return NextResponse.json(
-                { error: 'Invalid or expired token' },
+                { error: 'Invalid or expired token', detail: msg },
                 { status: 401 }
             );
         }

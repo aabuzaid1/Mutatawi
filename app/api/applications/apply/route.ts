@@ -15,13 +15,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/app/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-
-export const runtime = 'nodejs';
-
 import {
     sendApplicationConfirmation,
     sendNewApplicationNotification,
 } from '@/app/lib/email';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -39,11 +38,19 @@ export async function POST(request: NextRequest) {
         try {
             decodedToken = await adminAuth.verifyIdToken(idToken);
         } catch (error: any) {
-            console.error('[Apply API] Token verification failed:', error?.message || error);
-            console.error('[Apply API] FIREBASE_CLIENT_EMAIL set?', !!process.env.FIREBASE_CLIENT_EMAIL);
-            console.error('[Apply API] FIREBASE_PRIVATE_KEY set?', !!process.env.FIREBASE_PRIVATE_KEY);
+            const msg = error?.message || 'Unknown error';
+            console.error('[Apply API] verifyIdToken failed:', msg);
+
+            // Credential / init errors → 500
+            if (msg.includes('credentials') || msg.includes('FIREBASE') || msg.includes('Could not load')) {
+                return NextResponse.json(
+                    { error: msg },
+                    { status: 500 }
+                );
+            }
+            // Actual token errors → 401
             return NextResponse.json(
-                { error: 'Invalid or expired token', detail: error?.message || 'Unknown' },
+                { error: 'Invalid or expired token', detail: msg },
                 { status: 401 }
             );
         }
