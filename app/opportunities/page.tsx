@@ -72,7 +72,7 @@ export default function OpportunitiesPage() {
     useEffect(() => {
         async function loadOpportunities() {
             try {
-                const filters: any = { status: 'open' };
+                const filters: any = { status: 'open', excludePast: true };
                 if (selectedCategory) {
                     filters.category = selectedCategory;
                 }

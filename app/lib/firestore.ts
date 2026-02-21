@@ -43,6 +43,7 @@ export async function getOpportunities(filters?: {
     status?: string;
     organizationId?: string;
     featured?: boolean;
+    excludePast?: boolean;
 }) {
     try {
         // Build query constraints
@@ -72,12 +73,24 @@ export async function getOpportunities(filters?: {
             results = snapshot.docs;
         }
 
-        return results.map(doc => ({
+        let mappedResults = results.map(doc => ({
             id: doc.id,
             ...doc.data(),
             createdAt: doc.data().createdAt?.toDate?.() || new Date(),
             updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
         })) as Opportunity[];
+
+        // Filter out past opportunities if excludePast is true
+        if (filters?.excludePast) {
+            const now = new Date();
+            mappedResults = mappedResults.filter(opp => {
+                if (!opp.date) return true; // Keep if no date is set
+                const oppDateTime = new Date(`${opp.date}T${opp.startTime || '00:00'}`);
+                return oppDateTime >= now;
+            });
+        }
+
+        return mappedResults;
     } catch (error: any) {
         console.error('getOpportunities error:', error.code, error.message);
         return [];
