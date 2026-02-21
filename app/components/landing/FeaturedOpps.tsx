@@ -51,7 +51,7 @@ export default function FeaturedOpps() {
     useEffect(() => {
         async function loadOpportunities() {
             try {
-                const opps = await getOpportunities({ status: 'open' });
+                const opps = await getOpportunities({ status: 'open', excludePast: true });
                 setOpportunities(opps.slice(0, 4)); // Show max 4 on landing
             } catch (error) {
                 console.error('Error loading opportunities:', error);
