@@ -182,12 +182,25 @@ export async function resetPassword(email: string): Promise<void> {
             : 'http://localhost:3000/reset-password',
         handleCodeInApp: true,
     };
+
+    console.log('🔑 [resetPassword] Sending to:', email);
+    console.log('🔑 [resetPassword] Action URL:', actionCodeSettings.url);
+
     try {
         await sendPasswordResetEmail(auth, email, actionCodeSettings);
+        console.log('✅ [resetPassword] Firebase accepted the request — email should be sent');
     } catch (error: any) {
-        console.error('Reset password error:', error.code, error.message);
+        console.error('❌ [resetPassword] Error:', error.code, error.message);
+
         if (error.code === 'auth/unauthorized-continue-uri') {
-            await sendPasswordResetEmail(auth, email);
+            console.warn('⚠️ [resetPassword] Continue URI not authorized — retrying WITHOUT actionCodeSettings...');
+            try {
+                await sendPasswordResetEmail(auth, email);
+                console.log('✅ [resetPassword] Fallback succeeded — email should be sent (no custom redirect)');
+            } catch (fallbackError: any) {
+                console.error('❌ [resetPassword] Fallback also failed:', fallbackError.code, fallbackError.message);
+                throw fallbackError;
+            }
             return;
         }
         throw error;
@@ -195,11 +208,31 @@ export async function resetPassword(email: string): Promise<void> {
 }
 
 /**
+ * إرسال رابط إعادة تعيين كلمة المرور عبر السيرفر (Admin SDK + SMTP).
+ * هذه الطريقة أكثر موثوقية من Firebase Client SDK لأنها ترسل الإيميل
+ * مباشرة عبر Gmail SMTP بدلاً من نظام Firebase المدمج.
+ */
+export async function resetPasswordViaServer(email: string): Promise<{ success: boolean }> {
+    console.log('📧 [resetPasswordViaServer] Calling server API for:', email);
+    const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        console.error('❌ [resetPasswordViaServer] Server error:', data);
+        throw new Error(data.error || 'Server error');
+    }
+    console.log('✅ [resetPasswordViaServer] Server responded:', data);
+    return data;
+}
+/**
  * التحقق من رمز الاسترداد (Reset Code) القادم من رابط الإيميل.
  * 
- * @param {string} code - الرمز المرسل ضمن الـ URL.
- * @returns {Promise<string>} البريد الإلكتروني المرتبط بالرمز إذا كان صالحاً.
- * @throws {Error} إذا كان الرمز منتهي الصلاحية أو غير صحيح.
+ * @param { string } code - الرمز المرسل ضمن الـ URL.
+ * @returns { Promise<string> } البريد الإلكتروني المرتبط بالرمز إذا كان صالحاً.
+ * @throws { Error } إذا كان الرمز منتهي الصلاحية أو غير صحيح.
  */
 export async function verifyResetCode(code: string): Promise<string> {
     const email = await verifyPasswordResetCode(auth, code);
