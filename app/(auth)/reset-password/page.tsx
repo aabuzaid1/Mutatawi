@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,8 @@ import {
     IoArrowBackOutline,
     IoAlertCircleOutline,
     IoShieldCheckmarkOutline,
+    IoCheckmarkOutline,
+    IoCloseOutline,
 } from 'react-icons/io5';
 import { verifyResetCode, confirmReset } from '@/app/lib/auth';
 import Input from '@/app/components/ui/Input';
@@ -18,6 +20,76 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 type Step = 'verifying' | 'new-password' | 'success' | 'error';
+
+/* ── Password Strength Helpers ────────────────────────────── */
+
+interface PasswordRule {
+    label: string;
+    test: (pw: string) => boolean;
+}
+
+const PASSWORD_RULES: PasswordRule[] = [
+    { label: '٨ أحرف على الأقل', test: (pw) => pw.length >= 8 },
+    { label: 'حرف كبير واحد (A-Z)', test: (pw) => /[A-Z]/.test(pw) },
+    { label: 'رقم واحد على الأقل (0-9)', test: (pw) => /[0-9]/.test(pw) },
+];
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+    const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
+    const total = PASSWORD_RULES.length;
+    const pct = total === 0 ? 0 : (passed / total) * 100;
+
+    const color =
+        pct <= 33 ? 'bg-red-500' : pct <= 66 ? 'bg-amber-500' : 'bg-emerald-500';
+    const label =
+        pct <= 33 ? 'ضعيفة' : pct <= 66 ? 'متوسطة' : 'قوية';
+
+    if (!password) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="space-y-2.5"
+        >
+            {/* Bar */}
+            <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <motion.div
+                        className={`h-full rounded-full ${color}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.35 }}
+                    />
+                </div>
+                <span className={`text-xs font-bold ${color.replace('bg-', 'text-')}`}>
+                    {label}
+                </span>
+            </div>
+
+            {/* Rules checklist */}
+            <ul className="space-y-1">
+                {PASSWORD_RULES.map((rule, i) => {
+                    const ok = rule.test(password);
+                    return (
+                        <li key={i} className="flex items-center gap-1.5 text-xs">
+                            {ok ? (
+                                <IoCheckmarkOutline className="text-emerald-500 flex-shrink-0" size={14} />
+                            ) : (
+                                <IoCloseOutline className="text-slate-300 flex-shrink-0" size={14} />
+                            )}
+                            <span className={ok ? 'text-emerald-600' : 'text-slate-400'}>
+                                {rule.label}
+                            </span>
+                        </li>
+                    );
+                })}
+            </ul>
+        </motion.div>
+    );
+}
+
+/* ── Main Component ───────────────────────────────────────── */
 
 function ResetPasswordContent() {
     const searchParams = useSearchParams();
@@ -29,6 +101,11 @@ function ResetPasswordContent() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+
+    const allRulesPassed = useMemo(
+        () => PASSWORD_RULES.every((r) => r.test(newPassword)),
+        [newPassword],
+    );
 
     useEffect(() => {
         async function verify() {
@@ -48,6 +125,8 @@ function ResetPasswordContent() {
                     setErrorMessage('انتهت صلاحية رابط إعادة التعيين. يرجى طلب رابط جديد');
                 } else if (error.code === 'auth/invalid-action-code') {
                     setErrorMessage('رابط إعادة التعيين غير صالح أو تم استخدامه مسبقاً');
+                } else if (error.code === 'auth/user-disabled') {
+                    setErrorMessage('هذا الحساب معطّل. يرجى التواصل مع الدعم');
                 } else {
                     setErrorMessage('حدث خطأ أثناء التحقق. يرجى المحاولة مرة أخرى');
                 }
@@ -59,8 +138,8 @@ function ResetPasswordContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (newPassword.length < 6) {
-            toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+        if (!allRulesPassed) {
+            toast.error('كلمة المرور لا تستوفي جميع الشروط');
             return;
         }
         if (newPassword !== confirmPassword) {
@@ -80,6 +159,8 @@ function ResetPasswordContent() {
                 toast.error('انتهت صلاحية الرابط. يرجى طلب رابط جديد');
             } else if (error.code === 'auth/weak-password') {
                 toast.error('كلمة المرور ضعيفة جداً');
+            } else if (error.code === 'auth/user-disabled') {
+                toast.error('هذا الحساب معطّل. يرجى التواصل مع الدعم');
             } else {
                 toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
             }
@@ -154,6 +235,9 @@ function ResetPasswordContent() {
                                 icon={<IoLockClosedOutline size={18} />}
                                 required
                             />
+
+                            {/* Password Strength Meter */}
+                            <PasswordStrengthMeter password={newPassword} />
 
                             <Input
                                 label="تأكيد كلمة المرور"

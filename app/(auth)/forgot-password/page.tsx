@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoCheckmarkCircleOutline, IoArrowBackOutline } from 'react-icons/io5';
-import { resetPassword } from '@/app/lib/auth';
+import { resetPassword, resetPasswordViaServer } from '@/app/lib/auth';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -25,25 +25,32 @@ export default function ForgotPasswordPage() {
         setLoading(true);
 
         try {
-            await resetPassword(email);
+            // الطريقة الأساسية: إرسال عبر السيرفر (Admin SDK + SMTP)
+            await resetPasswordViaServer(email);
+            console.log('✅ [ForgotPassword] Server-side email sent successfully');
             setStep('sent');
             toast.success('تم إرسال رابط إعادة تعيين كلمة المرور!');
-        } catch (error: any) {
-            console.error('Forgot password error:', error);
-            const code = error?.code || '';
-            if (code === 'auth/user-not-found') {
-                toast.error('لا يوجد حساب مرتبط بهذا البريد الإلكتروني');
-            } else if (code === 'auth/invalid-email') {
-                toast.error('البريد الإلكتروني غير صالح');
-            } else if (code === 'auth/too-many-requests') {
-                toast.error('تم إرسال عدة طلبات. يرجى المحاولة لاحقاً');
-            } else if (code === 'auth/network-request-failed') {
-                toast.error('خطأ في الاتصال. تحقق من اتصالك بالإنترنت');
-            } else if (code === 'auth/unauthorized-continue-uri') {
-                // Still send even without actionCodeSettings
-                toast.error('حدث خطأ في الإعدادات. يرجى التواصل مع الدعم');
-            } else {
-                toast.error(`حدث خطأ: ${error?.message || 'يرجى المحاولة مرة أخرى'}`);
+        } catch (serverError: any) {
+            console.warn('⚠️ [ForgotPassword] Server-side failed, trying client-side...', serverError);
+            // الطريقة البديلة: إرسال عبر Firebase Client SDK
+            try {
+                await resetPassword(email);
+                setStep('sent');
+                toast.success('تم إرسال رابط إعادة تعيين كلمة المرور!');
+            } catch (error: any) {
+                console.error('🔍 [ForgotPassword] Both methods failed:', error?.code, error?.message);
+                const code = error?.code || '';
+                if (code === 'auth/user-not-found' || code === 'auth/invalid-email' || code === 'auth/user-disabled') {
+                    console.warn('⚠️ [ForgotPassword] Email not registered — showing success (security)');
+                    setStep('sent');
+                    return;
+                } else if (code === 'auth/too-many-requests') {
+                    toast.error('تم إرسال عدة طلبات. يرجى المحاولة لاحقاً');
+                } else if (code === 'auth/network-request-failed') {
+                    toast.error('خطأ في الاتصال. تحقق من اتصالك بالإنترنت');
+                } else {
+                    toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
+                }
             }
         } finally {
             setLoading(false);
@@ -53,10 +60,15 @@ export default function ForgotPasswordPage() {
     const handleResend = async () => {
         setLoading(true);
         try {
-            await resetPassword(email);
+            await resetPasswordViaServer(email);
             toast.success('تم إعادة إرسال رابط إعادة التعيين!');
-        } catch (error: any) {
-            toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
+        } catch {
+            try {
+                await resetPassword(email);
+                toast.success('تم إعادة إرسال رابط إعادة التعيين!');
+            } catch {
+                toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
+            }
         } finally {
             setLoading(false);
         }
