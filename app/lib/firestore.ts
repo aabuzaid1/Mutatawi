@@ -250,6 +250,61 @@ export async function withdrawApplication(applicationId: string, opportunityId: 
     });
 }
 
+// ===================== VOLUNTEER STATS SYNC =====================
+
+export async function syncVolunteerStats(volunteerId: string): Promise<{
+    hoursVolunteered: number;
+    opportunitiesCompleted: number;
+    completedApps: Array<{ opportunityId: string; opportunityTitle: string; date: string; duration: number }>;
+}> {
+    // Get all accepted applications for this volunteer
+    const q = query(
+        collection(db, 'applications'),
+        where('volunteerId', '==', volunteerId),
+        where('status', '==', 'accepted')
+    );
+    const snapshot = await getDocs(q);
+    const acceptedApps = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Application[];
+
+    if (acceptedApps.length === 0) {
+        return { hoursVolunteered: 0, opportunitiesCompleted: 0, completedApps: [] };
+    }
+
+    // Fetch opportunity details for each accepted app
+    const now = new Date();
+    const completedApps: Array<{ opportunityId: string; opportunityTitle: string; date: string; duration: number }> = [];
+    let totalHours = 0;
+
+    await Promise.all(
+        acceptedApps.map(async (app) => {
+            const opp = await getOpportunity(app.opportunityId);
+            if (opp && opp.date) {
+                const oppDate = new Date(`${opp.date}T${opp.endTime || opp.startTime || '23:59'}`);
+                if (oppDate < now) {
+                    // Opportunity has ended - count as completed
+                    const duration = opp.duration || 0;
+                    totalHours += duration;
+                    completedApps.push({
+                        opportunityId: app.opportunityId,
+                        opportunityTitle: app.opportunityTitle,
+                        date: opp.date,
+                        duration,
+                    });
+                }
+            }
+        })
+    );
+
+    // Update user profile with latest stats
+    await updateDoc(doc(db, 'users', volunteerId), {
+        hoursVolunteered: totalHours,
+        opportunitiesCompleted: completedApps.length,
+        updatedAt: serverTimestamp(),
+    });
+
+    return { hoursVolunteered: totalHours, opportunitiesCompleted: completedApps.length, completedApps };
+}
+
 // ===================== USER PROFILES =====================
 
 export async function updateUserProfile(uid: string, data: Partial<UserProfile>) {
@@ -330,6 +385,16 @@ export async function createFeedback(data: Omit<Feedback, 'id' | 'createdAt'>) {
         createdAt: serverTimestamp(),
     });
     return docRef.id;
+}
+
+export async function hasVolunteerRated(opportunityId: string, volunteerId: string): Promise<boolean> {
+    const q = query(
+        collection(db, 'feedbacks'),
+        where('opportunityId', '==', opportunityId),
+        where('volunteerId', '==', volunteerId)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
 }
 
 export async function getFeedbacks(limitCount: number = 10) {

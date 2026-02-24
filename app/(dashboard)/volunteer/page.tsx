@@ -9,6 +9,9 @@ import {
     IoHeartOutline,
     IoStarOutline,
     IoCloseCircleOutline,
+    IoTrophyOutline,
+    IoCalendarOutline,
+    IoTimerOutline,
 } from 'react-icons/io5';
 import ImpactCard from '@/app/components/dashboard/ImpactCard';
 import Badge from '@/app/components/ui/Badge';
@@ -17,16 +20,25 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import FeedbackModal from '@/app/components/dashboard/FeedbackModal';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
-import { getApplicationsByVolunteer, getOpportunity, withdrawApplication } from '@/app/lib/firestore';
+import { getApplicationsByVolunteer, getOpportunity, withdrawApplication, syncVolunteerStats, hasVolunteerRated } from '@/app/lib/firestore';
 import { Application } from '@/app/types';
 import toast from 'react-hot-toast';
+
+interface CompletedOpp {
+    opportunityId: string;
+    opportunityTitle: string;
+    date: string;
+    duration: number;
+    hasRated: boolean;
+}
 
 export default function VolunteerDashboard() {
     const { user, profile } = useAuth();
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
-    const [oppDates, setOppDates] = useState<Record<string, string>>({});
+    const [completedOpps, setCompletedOpps] = useState<CompletedOpp[]>([]);
+    const [totalHours, setTotalHours] = useState(0);
     const [feedbackModal, setFeedbackModal] = useState<{
         isOpen: boolean;
         opportunityId: string;
@@ -38,18 +50,26 @@ export default function VolunteerDashboard() {
             if (!user) return;
             try {
                 const apps = await getApplicationsByVolunteer(user.uid);
-                setApplications(apps);
 
-                // Fetch dates for accepted apps to know when rating is allowed
-                const acceptedApps = apps.filter(a => a.status === 'accepted');
-                const dates: Record<string, string> = {};
-                await Promise.all(
-                    acceptedApps.map(async (app) => {
-                        const opp = await getOpportunity(app.opportunityId);
-                        if (opp?.date) dates[app.opportunityId] = opp.date;
+                // Sync volunteer stats & get completed opportunities
+                const stats = await syncVolunteerStats(user.uid);
+                setTotalHours(stats.hoursVolunteered);
+
+                // Build completed opportunities list with rating status
+                const completedWithRating: CompletedOpp[] = await Promise.all(
+                    stats.completedApps.map(async (opp) => {
+                        const rated = await hasVolunteerRated(opp.opportunityId, user.uid);
+                        return { ...opp, hasRated: rated };
                     })
                 );
-                setOppDates(dates);
+                setCompletedOpps(
+                    completedWithRating.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                );
+
+                // Filter out applications that are in completed opportunities (already ended)
+                const completedIds = new Set(stats.completedApps.map(o => o.opportunityId));
+                const activeApps = apps.filter(a => !completedIds.has(a.opportunityId));
+                setApplications(activeApps);
             } catch (error) {
                 console.error('Error loading data:', error);
             } finally {
@@ -62,7 +82,6 @@ export default function VolunteerDashboard() {
     const handleWithdraw = async (app: Application) => {
         setWithdrawingId(app.id);
         try {
-            // Fetch the opportunity to check its date
             const opp = await getOpportunity(app.opportunityId);
             if (opp && opp.date) {
                 const oppDate = new Date(opp.date);
@@ -83,6 +102,14 @@ export default function VolunteerDashboard() {
         } finally {
             setWithdrawingId(null);
         }
+    };
+
+    const handleFeedbackClose = (opportunityId: string) => {
+        setFeedbackModal({ isOpen: false, opportunityId: '', opportunityTitle: '' });
+        // Mark as rated locally to hide button immediately
+        setCompletedOpps(prev =>
+            prev.map(o => o.opportunityId === opportunityId ? { ...o, hasRated: true } : o)
+        );
     };
 
     if (loading) {
@@ -133,13 +160,98 @@ export default function VolunteerDashboard() {
                 />
                 <ImpactCard
                     title="ساعات التطوع"
-                    value={String(profile?.hoursVolunteered || 0)}
+                    value={String(totalHours)}
                     icon={IoHeartOutline}
                     color="danger"
                 />
             </div>
 
-            {/* Applications List */}
+            {/* Completed Opportunities Section */}
+            {completedOpps.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100 overflow-hidden mb-6 sm:mb-8"
+                >
+                    <div className="p-4 sm:p-6 border-b border-green-100 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                            <IoTrophyOutline className="text-green-600" size={20} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg sm:text-xl font-bold text-slate-800">فرصي المكتملة 🎉</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                أتممت {completedOpps.length} فرصة بإجمالي{' '}
+                                <span className="font-bold text-green-600">{totalHours} ساعة</span> تطوع
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="divide-y divide-green-100">
+                        {completedOpps.map((opp, index) => (
+                            <motion.div
+                                key={opp.opportunityId}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.08 }}
+                                className="p-4 sm:p-5 flex items-center justify-between gap-3"
+                            >
+                                <div className="flex items-start gap-3 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <IoCheckmarkCircleOutline className="text-green-600" size={18} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-slate-800 text-sm sm:text-base leading-snug truncate">
+                                            {opp.opportunityTitle}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                                                <IoCalendarOutline size={12} />
+                                                {new Date(opp.date).toLocaleDateString('ar-SA', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric',
+                                                })}
+                                            </span>
+                                            {opp.duration > 0 && (
+                                                <span className="flex items-center gap-1 text-xs text-green-700 font-medium">
+                                                    <IoTimerOutline size={12} />
+                                                    {opp.duration} {opp.duration === 1 ? 'ساعة' : 'ساعات'}
+                                                </span>
+                                            )}
+                                            {/* Rating button - only if not yet rated */}
+                                            {!opp.hasRated && (
+                                                <button
+                                                    onClick={() => setFeedbackModal({
+                                                        isOpen: true,
+                                                        opportunityId: opp.opportunityId,
+                                                        opportunityTitle: opp.opportunityTitle,
+                                                    })}
+                                                    className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
+                                                >
+                                                    <IoStarOutline size={13} />
+                                                    قيّم تجربتك
+                                                </button>
+                                            )}
+                                            {opp.hasRated && (
+                                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                                    <IoStarOutline size={13} />
+                                                    تم التقييم
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <span className="flex-shrink-0 text-[11px] font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                                    مكتملة ✅
+                                </span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Active Applications List */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -183,20 +295,6 @@ export default function VolunteerDashboard() {
                                             تقدمت بتاريخ {app.appliedAt?.toLocaleDateString?.('ar-SA') || ''}
                                         </span>
 
-                                        {app.status === 'accepted' && oppDates[app.opportunityId] && new Date(oppDates[app.opportunityId]) < new Date() && (
-                                            <button
-                                                onClick={() => setFeedbackModal({
-                                                    isOpen: true,
-                                                    opportunityId: app.opportunityId,
-                                                    opportunityTitle: app.opportunityTitle,
-                                                })}
-                                                className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
-                                            >
-                                                <IoStarOutline size={14} />
-                                                قيّم تجربتك
-                                            </button>
-                                        )}
-
                                         {(app.status === 'pending' || app.status === 'accepted') && (
                                             <button
                                                 onClick={() => handleWithdraw(app)}
@@ -214,12 +312,18 @@ export default function VolunteerDashboard() {
                     </div>
                 ) : (
                     <div className="p-8 sm:p-12 text-center">
-                        <p className="text-slate-400 mb-4 text-sm sm:text-base">لم تتقدم لأي فرص تطوعية بعد</p>
-                        <Link href="/opportunities">
-                            <Button variant="primary">
-                                استكشف الفرص المتاحة
-                            </Button>
-                        </Link>
+                        <p className="text-slate-400 mb-4 text-sm sm:text-base">
+                            {completedOpps.length > 0
+                                ? 'ليس لديك طلبات نشطة حالياً'
+                                : 'لم تتقدم لأي فرص تطوعية بعد'}
+                        </p>
+                        {completedOpps.length === 0 && (
+                            <Link href="/opportunities">
+                                <Button variant="primary">
+                                    استكشف الفرص المتاحة
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 )}
             </motion.div>
@@ -228,7 +332,7 @@ export default function VolunteerDashboard() {
             {user && (
                 <FeedbackModal
                     isOpen={feedbackModal.isOpen}
-                    onClose={() => setFeedbackModal({ isOpen: false, opportunityId: '', opportunityTitle: '' })}
+                    onClose={() => handleFeedbackClose(feedbackModal.opportunityId)}
                     opportunityId={feedbackModal.opportunityId}
                     opportunityTitle={feedbackModal.opportunityTitle}
                     volunteerId={user.uid}
@@ -238,4 +342,3 @@ export default function VolunteerDashboard() {
         </div>
     );
 }
-
