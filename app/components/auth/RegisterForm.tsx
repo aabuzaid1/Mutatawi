@@ -10,6 +10,7 @@ import Input from '../ui/Input';
 import Button from '../ui/Button';
 import RoleSelector from './RoleSelector';
 import toast from 'react-hot-toast';
+import { trackEvent } from '@/app/lib/analytics';
 
 const governorates = [
     'عمان', 'إربد', 'الزرقاء', 'المفرق', 'عجلون', 'جرش',
@@ -54,6 +55,7 @@ export default function RegisterForm() {
 
         try {
             await signUp(email, password, name, role, phone, governorate);
+            trackEvent('register_success', { role });
             toast.success('تم إرسال إيميل التحقق، يرجى تفعيل حسابك لتتمكن من الدخول ✉️', {
                 duration: 5000,
             });

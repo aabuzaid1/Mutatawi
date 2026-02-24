@@ -20,6 +20,7 @@
     "@types/nodemailer": "^7.0.10",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vercel/analytics": "^1.6.1",
     "autoprefixer": "^10.4.24",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.6.1",

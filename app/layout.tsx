@@ -9,6 +9,8 @@ import './globals.css';
 import { AuthProvider } from './context/AuthContext';
 import ToastProvider from './components/shared/ToastProvider';
 import ScrollToTop from './components/shared/ScrollToTop';
+import AnalyticsTracker from './components/shared/AnalyticsTracker';
+import { Analytics } from '@vercel/analytics/react';
 
 /**
  * البيانات الوصفية (Metadata) لـ SEO والتحسين في محركات البحث.
@@ -39,8 +41,10 @@ export default function RootLayout({
                 <AuthProvider>
                     <ToastProvider />
                     <ScrollToTop />
+                    <AnalyticsTracker />
                     {children}
                 </AuthProvider>
+                <Analytics />
             </body>
         </html>
     );
