@@ -314,58 +314,6 @@ export async function updateUserProfile(uid: string, data: Partial<UserProfile>)
     });
 }
 
-export async function getUserStats(uid: string, role: 'volunteer' | 'organization') {
-    if (role === 'volunteer') {
-        const appsQuery = query(
-            collection(db, 'applications'),
-            where('volunteerId', '==', uid)
-        );
-        const appsSnap = await getDocs(appsQuery);
-        const apps = appsSnap.docs.map(d => d.data());
-
-        return {
-            totalApplications: apps.length,
-            accepted: apps.filter(a => a.status === 'accepted').length,
-            completed: apps.filter(a => a.status === 'completed').length,
-            pending: apps.filter(a => a.status === 'pending').length,
-        };
-    } else {
-        const oppsQuery = query(
-            collection(db, 'opportunities'),
-            where('organizationId', '==', uid)
-        );
-        const oppsSnap = await getDocs(oppsQuery);
-
-        const totalApplicants = oppsSnap.docs.reduce((sum, d) => sum + (d.data().spotsFilled || 0), 0);
-
-        return {
-            totalOpportunities: oppsSnap.size,
-            totalApplicants,
-            openOpportunities: oppsSnap.docs.filter(d => d.data().status === 'open').length,
-        };
-    }
-}
-
-// ===================== PLATFORM STATS =====================
-
-export async function getPlatformStats() {
-    const [usersSnap, oppsSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'opportunities')),
-    ]);
-
-    const users = usersSnap.docs.map(d => d.data());
-    const volunteers = users.filter(u => u.role === 'volunteer').length;
-    const organizations = users.filter(u => u.role === 'organization').length;
-
-    return {
-        totalVolunteers: volunteers || 200,
-        totalOrganizations: organizations || 5,
-        totalHours: 100,
-        totalOpportunities: oppsSnap.size || 20,
-    };
-}
-
 // ===================== FEEDBACK =====================
 
 export async function createFeedback(data: Omit<Feedback, 'id' | 'createdAt'>) {
