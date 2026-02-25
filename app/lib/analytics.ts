@@ -62,6 +62,64 @@ export async function trackEvent(eventName: AnalyticsEventName, data?: Record<st
     }
 }
 
+// ===================== PER-OPPORTUNITY VIEW TRACKING =====================
+
+/**
+ * تسجيل مشاهدة فرصة تطوعية معينة.
+ * يُنشئ أو يُحدّث وثيقة خاصة بالفرصة ويزيد عدد المشاهدات.
+ * @param opportunityId - معرف الفرصة
+ */
+export async function trackOpportunityView(opportunityId: string) {
+    try {
+        const ref = doc(db, 'opportunity_views', opportunityId);
+        await setDoc(ref, {
+            opportunityId,
+            viewCount: increment(1),
+            lastViewed: serverTimestamp(),
+        }, { merge: true });
+    } catch (error) {
+        console.warn('Analytics trackOpportunityView error:', error);
+    }
+}
+
+export interface OpportunityViewStat {
+    opportunityId: string;
+    viewCount: number;
+    lastViewed: Date;
+}
+
+/**
+ * جلب إحصائيات المشاهدات لمجموعة من الفرص.
+ * @param opportunityIds - قائمة بمعرفات الفرص
+ */
+export async function getOpportunityViewStats(opportunityIds: string[]): Promise<Record<string, OpportunityViewStat>> {
+    const result: Record<string, OpportunityViewStat> = {};
+    if (opportunityIds.length === 0) return result;
+
+    // Fetch each opportunity's view doc
+    const promises = opportunityIds.map(async (oppId) => {
+        try {
+            const ref = doc(db, 'opportunity_views', oppId);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                const data = snap.data();
+                result[oppId] = {
+                    opportunityId: oppId,
+                    viewCount: data.viewCount || 0,
+                    lastViewed: data.lastViewed?.toDate?.() || new Date(),
+                };
+            } else {
+                result[oppId] = { opportunityId: oppId, viewCount: 0, lastViewed: new Date() };
+            }
+        } catch {
+            result[oppId] = { opportunityId: oppId, viewCount: 0, lastViewed: new Date() };
+        }
+    });
+
+    await Promise.all(promises);
+    return result;
+}
+
 // ===================== FETCH ANALYTICS =====================
 
 export interface PageViewStat {

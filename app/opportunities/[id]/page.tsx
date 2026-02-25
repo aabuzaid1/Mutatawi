@@ -29,7 +29,7 @@ import { getOpportunity } from '@/app/lib/firestore';
 import { Opportunity } from '@/app/types';
 import { categoryColors } from '@/app/lib/utils';
 import toast from 'react-hot-toast';
-import { trackEvent } from '@/app/lib/analytics';
+import { trackEvent, trackOpportunityView } from '@/app/lib/analytics';
 
 const categoryEmojis: Record<string, string> = {
     'تعليم': '📚', 'صحة': '🏥', 'بيئة': '🌿', 'مجتمع': '🤝',
@@ -55,7 +55,10 @@ export default function OpportunityDetailPage() {
             try {
                 const opp = await getOpportunity(id);
                 setOpportunity(opp);
-                if (opp) trackEvent('view_opportunity', { id, title: opp.title });
+                if (opp) {
+                    trackEvent('view_opportunity', { id, title: opp.title });
+                    trackOpportunityView(id);
+                }
             } catch (error) {
                 console.error('Error loading opportunity:', error);
             } finally {
