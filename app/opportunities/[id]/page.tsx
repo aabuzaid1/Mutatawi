@@ -56,8 +56,8 @@ export default function OpportunityDetailPage() {
                 const opp = await getOpportunity(id);
                 setOpportunity(opp);
                 if (opp) {
+                    trackOpportunityView(id, opp.organizationId, opp.title);
                     trackEvent('view_opportunity', { id, title: opp.title });
-                    trackOpportunityView(id);
                 }
             } catch (error) {
                 console.error('Error loading opportunity:', error);
@@ -120,7 +120,7 @@ export default function OpportunityDetailPage() {
             }
 
             setApplied(true);
-            trackEvent('click_apply', { opportunityId: opportunity.id, title: opportunity.title });
+            trackEvent('click_apply', { opportunityId: opportunity.id, title: opportunity.title, organizationId: opportunity.organizationId });
             toast.success('تم تقديم طلبك بنجاح! 🎉');
         } catch (error: any) {
             if (error.message?.includes('مسبقاً')) {

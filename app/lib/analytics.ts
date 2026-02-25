@@ -8,12 +8,10 @@ import {
     doc,
     setDoc,
     getDocs,
-    getDoc,
     increment,
     serverTimestamp,
-    orderBy,
     query,
-    Timestamp,
+    where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -62,18 +60,25 @@ export async function trackEvent(eventName: AnalyticsEventName, data?: Record<st
     }
 }
 
-// ===================== PER-OPPORTUNITY VIEW TRACKING =====================
+// ===================== ORGANIZATION-SPECIFIC TRACKING =====================
 
 /**
- * تسجيل مشاهدة فرصة تطوعية معينة.
- * يُنشئ أو يُحدّث وثيقة خاصة بالفرصة ويزيد عدد المشاهدات.
+ * تسجيل مشاهدة فرصة تطوعية مع ربطها بالمنظمة.
  * @param opportunityId - معرف الفرصة
+ * @param organizationId - معرف المنظمة المالكة للفرصة
+ * @param opportunityTitle - عنوان الفرصة
  */
-export async function trackOpportunityView(opportunityId: string) {
+export async function trackOpportunityView(
+    opportunityId: string,
+    organizationId: string,
+    opportunityTitle: string
+) {
     try {
         const ref = doc(db, 'opportunity_views', opportunityId);
         await setDoc(ref, {
             opportunityId,
+            organizationId,
+            opportunityTitle,
             viewCount: increment(1),
             lastViewed: serverTimestamp(),
         }, { merge: true });
@@ -84,92 +89,33 @@ export async function trackOpportunityView(opportunityId: string) {
 
 export interface OpportunityViewStat {
     opportunityId: string;
+    opportunityTitle: string;
     viewCount: number;
     lastViewed: Date;
 }
 
 /**
- * جلب إحصائيات المشاهدات لمجموعة من الفرص.
- * @param opportunityIds - قائمة بمعرفات الفرص
+ * جلب إحصائيات المنظمة (المشاهدات والطلبات لكل فرصة).
+ * @param organizationId - معرف المنظمة
  */
-export async function getOpportunityViewStats(opportunityIds: string[]): Promise<Record<string, OpportunityViewStat>> {
-    const result: Record<string, OpportunityViewStat> = {};
-    if (opportunityIds.length === 0) return result;
-
-    // Fetch each opportunity's view doc
-    const promises = opportunityIds.map(async (oppId) => {
-        try {
-            const ref = doc(db, 'opportunity_views', oppId);
-            const snap = await getDoc(ref);
-            if (snap.exists()) {
-                const data = snap.data();
-                result[oppId] = {
-                    opportunityId: oppId,
-                    viewCount: data.viewCount || 0,
-                    lastViewed: data.lastViewed?.toDate?.() || new Date(),
-                };
-            } else {
-                result[oppId] = { opportunityId: oppId, viewCount: 0, lastViewed: new Date() };
-            }
-        } catch {
-            result[oppId] = { opportunityId: oppId, viewCount: 0, lastViewed: new Date() };
-        }
-    });
-
-    await Promise.all(promises);
-    return result;
-}
-
-// ===================== FETCH ANALYTICS =====================
-
-export interface PageViewStat {
-    path: string;
-    viewCount: number;
-    lastVisited: Date;
-}
-
-export interface EventStat {
-    eventName: string;
-    count: number;
-    lastTriggered: Date;
-}
-
-/**
- * جلب جميع إحصائيات الصفحات.
- */
-export async function getPageViewStats(): Promise<PageViewStat[]> {
-    const snapshot = await getDocs(collection(db, 'page_views'));
-    return snapshot.docs
-        .map(doc => {
-            const data = doc.data();
+export async function getOrganizationViewStats(organizationId: string): Promise<OpportunityViewStat[]> {
+    try {
+        const q = query(
+            collection(db, 'opportunity_views'),
+            where('organizationId', '==', organizationId)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => {
+            const data = d.data();
             return {
-                path: data.path || doc.id,
+                opportunityId: data.opportunityId || d.id,
+                opportunityTitle: data.opportunityTitle || '',
                 viewCount: data.viewCount || 0,
-                lastVisited: data.lastVisited?.toDate?.() || new Date(),
+                lastViewed: data.lastViewed?.toDate?.() || new Date(),
             };
-        })
-        .sort((a, b) => b.viewCount - a.viewCount);
-}
-
-/**
- * جلب إحصائيات الأحداث المخصصة.
- */
-export async function getEventStats(): Promise<EventStat[]> {
-    const snapshot = await getDocs(collection(db, 'analytics_events'));
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            eventName: data.eventName || doc.id,
-            count: data.count || 0,
-            lastTriggered: data.lastTriggered?.toDate?.() || new Date(),
-        };
-    });
-}
-
-/**
- * جلب إجمالي الزيارات.
- */
-export async function getTotalPageViews(): Promise<number> {
-    const stats = await getPageViewStats();
-    return stats.reduce((sum, s) => sum + s.viewCount, 0);
+        });
+    } catch (error) {
+        console.warn('getOrganizationViewStats error:', error);
+        return [];
+    }
 }

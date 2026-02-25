@@ -25,11 +25,11 @@ export default function Footer() {
                             transition={{ duration: 0.6 }}
                         >
                             <div className="flex items-center gap-3 mb-4">
-                                <img src="/logo.png" alt="متطوعي" className="w-10 h-10 rounded-full" />
-                                <h3 className="text-xl font-bold">متطوعي</h3>
+                                <img src="/logo.png" alt="متطوع" className="w-10 h-10 rounded-full" />
+                                <h3 className="text-xl font-bold">متطوع</h3>
                             </div>
                             <p className="text-slate-400 text-sm leading-relaxed max-w-xs">
-                                منصة متطوعي تربط المتطوعين بالفرص التطوعية في مجتمعاتهم.
+                                منصة متطوع تربط المتطوعين بالفرص التطوعية في مجتمعاتهم.
                                 اكتشف فرصاً تطوعية تناسب مهاراتك وساهم في بناء مستقبل أفضل.
                             </p>
                         </motion.div>

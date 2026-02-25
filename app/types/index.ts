@@ -88,14 +88,6 @@ export interface Feedback {
     createdAt: Date;
 }
 
-// Stats types
-export interface PlatformStats {
-    totalVolunteers: number;
-    totalOrganizations: number;
-    totalHours: number;
-    totalOpportunities: number;
-}
-
 // Filter types
 export interface OpportunityFilters {
     category?: OpportunityCategory;
