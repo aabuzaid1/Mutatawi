@@ -17,9 +17,13 @@ import { Analytics } from '@vercel/analytics/react';
  * @type {Metadata}
  */
 export const metadata: Metadata = {
-    title: 'متطوع | منصة التطوع الأولى',
+    title: 'متطوع',
     description: 'منصة متطوع تربط المتطوعين بالفرص التطوعية في مجتمعاتهم. اكتشف فرصاً تطوعية تناسب مهاراتك وساهم في بناء مستقبل أفضل.',
     keywords: ['تطوع', 'متطوع', 'فرص تطوعية', 'مجتمع', 'عمل خيري'],
+    icons: {
+        icon: '/favicon.png',
+        apple: '/favicon.png',
+    }
 };
 
 /**
