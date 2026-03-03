@@ -19,6 +19,7 @@ import {
     sendApplicationConfirmation,
     sendNewApplicationNotification,
 } from '@/app/lib/email';
+import { applySchema, validateInput } from '@/app/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -41,33 +42,33 @@ export async function POST(request: NextRequest) {
             const msg = error?.message || 'Unknown error';
             console.error('[Apply API] verifyIdToken failed:', msg);
 
-            // Credential / init errors → 500
+            // Credential / init errors → 500 (don't leak details)
             if (msg.includes('credentials') || msg.includes('FIREBASE') || msg.includes('Could not load')) {
                 return NextResponse.json(
-                    { error: msg },
+                    { error: 'Server configuration error' },
                     { status: 500 }
                 );
             }
             // Actual token errors → 401
             return NextResponse.json(
-                { error: 'Invalid or expired token', detail: msg },
+                { error: 'Invalid or expired token' },
                 { status: 401 }
             );
         }
 
         const volunteerId = decodedToken.uid;
 
-        // ========== 2. قراءة Body ==========
+        // ========== 2. قراءة Body والتحقق من المدخلات ==========
         const body = await request.json();
-        const { opportunityId, phone } = body;
-        const message = body.message || 'أرغب بالتطوع في هذه الفرصة';
-
-        if (!opportunityId) {
+        const validation = validateInput(applySchema, body);
+        if (!validation.success) {
             return NextResponse.json(
-                { error: 'opportunityId is required' },
+                { error: validation.errors.join(', ') },
                 { status: 400 }
             );
         }
+        const { opportunityId, phone } = validation.data;
+        const message = validation.data.message || 'أرغب بالتطوع في هذه الفرصة';
 
         console.log(`[Apply API] Volunteer ${volunteerId} applying for opportunity ${opportunityId}`);
 
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('[Apply API] Unexpected error:', error);
         return NextResponse.json(
-            { error: error.message || 'Internal server error' },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }

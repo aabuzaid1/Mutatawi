@@ -1,4 +1,14 @@
+/**
+ * POST /api/send-email
+ * 
+ * إرسال إيميلات — يتطلب Firebase ID Token للمصادقة
+ * 
+ * Body: { type: string, data: object }
+ * Headers: Authorization: Bearer <idToken>
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/app/lib/firebase-admin';
 import {
     sendWelcomeEmail,
     sendApplicationConfirmation,
@@ -7,44 +17,59 @@ import {
     sendApplicationRejected,
 } from '@/app/lib/email';
 
-// GET endpoint for testing — visit /api/send-email?to=YOUR_EMAIL in browser
-export async function GET(request: NextRequest) {
-    const testEmail = request.nextUrl.searchParams.get('to') || 'mutatawi@gmail.com';
-    try {
-        // Check env vars
-        if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
-            return NextResponse.json({
-                error: 'Missing SMTP env vars',
-                hasEmail: !!process.env.SMTP_EMAIL,
-                hasPassword: !!process.env.SMTP_PASSWORD,
-            }, { status: 500 });
-        }
+export const runtime = 'nodejs';
 
-        await sendWelcomeEmail('اختبار', testEmail, 'volunteer');
-        return NextResponse.json({ success: true, message: `Test email sent to ${testEmail}` });
-    } catch (error: any) {
-        console.error('Test email error:', error);
-        return NextResponse.json({
-            error: error.message || 'Unknown error',
-            code: error.code,
-            stack: error.stack?.split('\n').slice(0, 3),
-        }, { status: 500 });
-    }
-}
+// ❌ تم حذف GET endpoint التجريبي — كان مكشوفاً للجميع
 
 export async function POST(request: NextRequest) {
     try {
+        // ========== 1. التحقق من المصادقة ==========
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json(
+                { error: 'Missing or invalid Authorization header' },
+                { status: 401 }
+            );
+        }
+
+        const idToken = authHeader.split('Bearer ')[1];
+        let decodedToken;
+        try {
+            decodedToken = await adminAuth.verifyIdToken(idToken);
+        } catch {
+            return NextResponse.json(
+                { error: 'Invalid or expired token' },
+                { status: 401 }
+            );
+        }
+
+        console.log(`[Email API] Authenticated user: ${decodedToken.uid}`);
+
+        // ========== 2. معالجة الطلب ==========
         const body = await request.json();
         const { type, data } = body;
 
-        console.log('[Email API] Sending email type:', type, 'data:', JSON.stringify(data));
+        if (!type || !data) {
+            return NextResponse.json(
+                { error: 'type and data are required' },
+                { status: 400 }
+            );
+        }
+
+        console.log('[Email API] Sending email type:', type);
 
         switch (type) {
             case 'welcome':
+                if (!data.name || !data.email || !data.role) {
+                    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+                }
                 await sendWelcomeEmail(data.name, data.email, data.role);
                 break;
 
             case 'application-confirmation':
+                if (!data.volunteerName || !data.volunteerEmail || !data.opportunityTitle) {
+                    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+                }
                 await sendApplicationConfirmation(
                     data.volunteerName,
                     data.volunteerEmail,
@@ -53,6 +78,9 @@ export async function POST(request: NextRequest) {
                 break;
 
             case 'new-application':
+                if (!data.orgEmail || !data.orgName || !data.volunteerName || !data.opportunityTitle) {
+                    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+                }
                 await sendNewApplicationNotification(
                     data.orgEmail,
                     data.orgName,
@@ -62,6 +90,9 @@ export async function POST(request: NextRequest) {
                 break;
 
             case 'application-accepted':
+                if (!data.volunteerName || !data.volunteerEmail || !data.opportunityTitle) {
+                    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+                }
                 await sendApplicationAccepted(
                     data.volunteerName,
                     data.volunteerEmail,
@@ -70,6 +101,9 @@ export async function POST(request: NextRequest) {
                 break;
 
             case 'application-rejected':
+                if (!data.volunteerName || !data.volunteerEmail || !data.opportunityTitle) {
+                    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+                }
                 await sendApplicationRejected(
                     data.volunteerName,
                     data.volunteerEmail,
@@ -84,7 +118,10 @@ export async function POST(request: NextRequest) {
         console.log('[Email API] Email sent successfully, type:', type);
         return NextResponse.json({ success: true });
     } catch (error: any) {
-        console.error('[Email API] Error:', error.message, error.code, error.stack);
-        return NextResponse.json({ error: error.message || 'Failed to send email' }, { status: 500 });
+        console.error('[Email API] Error:', error.message);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
     }
 }

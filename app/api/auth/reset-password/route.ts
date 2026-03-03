@@ -2,8 +2,10 @@
  * POST /api/auth/reset-password
  * 
  * Server-side password reset email using Firebase Admin SDK + SMTP.
- * This bypasses Firebase's built-in email delivery and sends
- * the reset link via our own SMTP (Gmail/Nodemailer).
+ * 
+ * الحماية:
+ *   - Rate Limiting: حد أقصى 3 طلبات لكل IP كل 15 دقيقة
+ *   - لا يكشف إذا الإيميل موجود أو لا (user enumeration protection)
  * 
  * Body: { email: string }
  */
@@ -11,6 +13,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/app/lib/firebase-admin';
 import nodemailer from 'nodemailer';
+
+export const runtime = 'nodejs';
+
+// ── Rate Limiter (In-Memory) ────────────────────────
+const rateLimitMap = new Map<string, { count: number; firstRequest: number }>();
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 دقيقة
+const RATE_LIMIT_MAX_REQUESTS = 3;
+
+function cleanupRateLimit() {
+  const now = Date.now();
+  for (const [key, value] of Array.from(rateLimitMap.entries())) {
+    if (now - value.firstRequest > RATE_LIMIT_WINDOW_MS) {
+      rateLimitMap.delete(key);
+    }
+  }
+}
+
+function isRateLimited(ip: string): boolean {
+  cleanupRateLimit();
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry) {
+    rateLimitMap.set(ip, { count: 1, firstRequest: now });
+    return false;
+  }
+
+  if (now - entry.firstRequest > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, firstRequest: now });
+    return false;
+  }
+
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
 
 // ── SMTP ────────────────────────────────────────────
 let transporter: nodemailer.Transporter | null = null;
@@ -95,20 +132,39 @@ function buildResetEmailHtml(resetLink: string) {
 </html>`;
 }
 
+// ── Validation ──────────────────────────────────────
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // ── Route Handler ───────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    // ========== 1. Rate Limiting ==========
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+
+    if (isRateLimited(ip)) {
+      console.warn(`[reset-password API] Rate limited IP: ${ip}`);
+      return NextResponse.json(
+        { error: 'تم تجاوز الحد المسموح. حاول مرة أخرى بعد 15 دقيقة.' },
+        { status: 429 }
+      );
+    }
+
+    // ========== 2. Validate Input ==========
     const { email } = await request.json();
 
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email)) {
+      return NextResponse.json({ error: 'البريد الإلكتروني غير صالح' }, { status: 400 });
     }
+
+    // Sanitize email
+    const sanitizedEmail = email.trim().toLowerCase();
 
     // استخدم origin الطلب (localhost في التطوير، الدومين الحقيقي في الإنتاج)
     const origin = request.headers.get('origin') || SITE_URL;
 
-    console.log('📧 [reset-password API] Generating reset link for:', email);
-    console.log('📧 [reset-password API] Origin:', origin);
+    console.log('[reset-password API] Generating reset link for:', sanitizedEmail);
 
     // Generate password reset link via Firebase Admin SDK
     const actionCodeSettings = {
@@ -116,45 +172,45 @@ export async function POST(request: NextRequest) {
       handleCodeInApp: true,
     };
 
-    const firebaseLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
-    console.log('✅ [reset-password API] Firebase link generated');
+    const firebaseLink = await adminAuth.generatePasswordResetLink(sanitizedEmail, actionCodeSettings);
 
     // استخراج oobCode من رابط Firebase وبناء رابط مباشر لصفحتنا
-    // رابط Firebase يكون: https://project.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=ABC&...
-    // نحن نحتاج: https://OUR_DOMAIN/reset-password?oobCode=ABC&mode=resetPassword
     const firebaseUrl = new URL(firebaseLink);
     const oobCode = firebaseUrl.searchParams.get('oobCode');
     const apiKey = firebaseUrl.searchParams.get('apiKey');
 
     if (!oobCode) {
-      console.error('❌ [reset-password API] Could not extract oobCode from Firebase link');
       throw new Error('Failed to extract reset code');
     }
 
     // بناء رابط مباشر لصفحة /reset-password في موقعنا
     const directResetLink = `${origin}/reset-password?mode=resetPassword&oobCode=${oobCode}${apiKey ? `&apiKey=${apiKey}` : ''}`;
-    console.log('✅ [reset-password API] Direct link built:', directResetLink.substring(0, 80) + '...');
 
     // Send email via SMTP
     await getTransporter().sendMail({
       from: FROM_EMAIL,
-      to: email,
+      to: sanitizedEmail,
       subject: 'إعادة تعيين كلمة المرور — متطوع 🔑',
       html: buildResetEmailHtml(directResetLink),
     });
 
-    console.log('✅ [reset-password API] Email sent via SMTP to:', email);
+    console.log('[reset-password API] Email sent via SMTP');
 
     // أمان: لا نكشف إذا الإيميل موجود أو لا
-    return NextResponse.json({ success: true, message: 'If the email exists, a reset link has been sent' });
+    return NextResponse.json({
+      success: true,
+      message: 'If the email exists, a reset link has been sent',
+    });
 
   } catch (error: any) {
-    console.error('❌ [reset-password API] Error:', error.code || error.message);
+    console.error('[reset-password API] Error:', error.code || error.message);
 
     // أمان: نرد نفس الرد حتى لو الإيميل غير موجود
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-      console.warn('⚠️ [reset-password API] Email not found — returning generic success');
-      return NextResponse.json({ success: true, message: 'If the email exists, a reset link has been sent' });
+      return NextResponse.json({
+        success: true,
+        message: 'If the email exists, a reset link has been sent',
+      });
     }
 
     return NextResponse.json(
