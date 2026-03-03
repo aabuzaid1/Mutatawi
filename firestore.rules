@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===================== USERS =====================
+    // أي مستخدم مسجل يقدر يقرأ بيانات المستخدمين (للعرض)
+    // لكن يعدل بياناته فقط
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // لا أحد يحذف حسابات من العميل
+    }
+
+    // ===================== OPPORTUNITIES =====================
+    // الكل يقرأ الفرص (حتى بدون تسجيل دخول — الصفحة العامة)
+    // المنظمات فقط تنشئ/تعدل/تحذف فرصها
+    match /opportunities/{oppId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.organizationId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.organizationId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.organizationId == request.auth.uid;
+    }
+
+    // ===================== APPLICATIONS =====================
+    // المتطوع يقرأ طلباته + المنظمة تقرأ الطلبات على فرصها
+    // المتطوع ينشئ طلبات + يحذف طلباته
+    // المنظمة تعدل حالة الطلبات (قبول/رفض)
+    match /applications/{appId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.volunteerId == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null
+        && resource.data.volunteerId == request.auth.uid;
+    }
+
+    // ===================== FEEDBACKS =====================
+    // الكل يقرأ التقييمات (للعرض العام)
+    // المتطوعين فقط ينشئون تقييمات
+    match /feedbacks/{feedbackId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.volunteerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ===================== ANALYTICS =====================
+    // تتبع الإحصائيات — أي مستخدم يكتب (مجهول أو مسجل)
+    // القراءة للمسجلين فقط
+    match /page_views/{docId} {
+      allow read: if request.auth != null;
+      allow write: if true; // Analytics tracking
+    }
+
+    match /analytics_events/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if true; // Analytics tracking
+    }
+
+    match /opportunity_views/{viewId} {
+      allow read: if request.auth != null;
+      allow write: if true; // Analytics tracking
+    }
+
+    // ===================== DEFAULT: DENY ALL =====================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

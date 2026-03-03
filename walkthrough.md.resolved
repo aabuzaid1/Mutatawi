@@ -1,0 +1,35 @@
+# 🔒 ملخص الإصلاحات الأمنية — Mutatawi
+
+## ما تم إنجازه
+
+تم إصلاح **9 ثغرات أمنية** (3 حرجة + 3 عالية + 3 متوسطة) وتأكيد نجاح البناء.
+
+## الملفات المعدلة والجديدة
+
+| الملف | النوع | الإصلاح |
+|---|---|---|
+| [.env.example](file:///c:/Users/abdel/Desktop/Mutatawi%20website/.env.example) | تعديل | إزالة المفاتيح الحقيقية واستبدالها بـ placeholders |
+| [.gitignore](file:///c:/Users/abdel/Desktop/Mutatawi%20website/.gitignore) | تعديل | إضافة [.env.production](file:///c:/Users/abdel/Desktop/Mutatawi%20website/.env.production) لمنع تسريبه |
+| [send-email/route.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/api/send-email/route.ts) | إعادة كتابة | إضافة Firebase auth + حذف GET endpoint + input validation |
+| [reset-password/route.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/api/auth/reset-password/route.ts) | إعادة كتابة | Rate limiting (3 طلبات/15 دقيقة) + email validation |
+| [middleware.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/middleware.ts) | **جديد** | حماية server-side لصفحات الداشبورد + Security headers |
+| [firestore.rules](file:///c:/Users/abdel/Desktop/Mutatawi%20website/firestore.rules) | **جديد** | قواعد أمان Firestore |
+| [validation.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/lib/validation.ts) | **جديد** | Zod schemas للتحقق من المدخلات |
+| [apply/route.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/api/applications/apply/route.ts) | تعديل | Zod validation + إخفاء أخطاء داخلية |
+| [withdraw/route.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/api/applications/withdraw/route.ts) | تعديل | Zod validation + إخفاء أخطاء داخلية |
+| [first-login/route.ts](file:///c:/Users/abdel/Desktop/Mutatawi%20website/app/api/auth/first-login/route.ts) | تعديل | إخفاء أخطاء داخلية |
+| [next.config.js](file:///c:/Users/abdel/Desktop/Mutatawi%20website/next.config.js) | إعادة كتابة | CSP + Security headers + serverRuntimeConfig |
+
+## التحقق
+
+✅ `npx next build` — **Compiled successfully**  
+✅ Middleware مضمّن (25.9 kB)  
+✅ جميع API routes مبنية بنجاح
+
+## خطوة مهمة متبقية
+
+> [!IMPORTANT]
+> **يجب عليك يدوياً:**
+> 1. تغيير كلمة مرور SMTP (Gmail App Password) فوراً
+> 2. إنشاء Firebase Service Account Key جديد من Firebase Console وإلغاء القديم
+> 3. نشر [firestore.rules](file:///c:/Users/abdel/Desktop/Mutatawi%20website/firestore.rules) على Firebase: `npx firebase deploy --only firestore:rules`

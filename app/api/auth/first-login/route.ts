@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
             console.error('[First Login API] verifyIdToken failed:', msg);
 
             if (msg.includes('credentials') || msg.includes('FIREBASE') || msg.includes('Could not load')) {
-                return NextResponse.json({ error: msg }, { status: 500 });
+                return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
             }
             return NextResponse.json(
-                { error: 'Invalid or expired token', detail: msg },
+                { error: 'Invalid or expired token' },
                 { status: 401 }
             );
         }
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('[First Login API] Unexpected error:', error);
         return NextResponse.json(
-            { error: error.message || 'Internal server error' },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }

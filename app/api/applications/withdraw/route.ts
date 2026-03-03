@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/app/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { withdrawSchema, validateInput } from '@/app/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -37,16 +38,16 @@ export async function POST(request: NextRequest) {
 
         const userId = decodedToken.uid;
 
-        // ========== 2. قراءة Body ==========
+        // ========== 2. قراءة Body والتحقق من المدخلات ==========
         const body = await request.json();
-        const { applicationId, opportunityId } = body;
-
-        if (!applicationId || !opportunityId) {
+        const validation = validateInput(withdrawSchema, body);
+        if (!validation.success) {
             return NextResponse.json(
-                { error: 'applicationId and opportunityId are required' },
+                { error: validation.errors.join(', ') },
                 { status: 400 }
             );
         }
+        const { applicationId, opportunityId } = validation.data;
 
         // ========== 3. التحقق من أن الطلب موجود وملك المستخدم ==========
         const appRef = adminDb.collection('applications').doc(applicationId);
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('[Withdraw API] Unexpected error:', error);
         return NextResponse.json(
-            { error: error.message || 'Internal server error' },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }
