@@ -230,6 +230,7 @@ export default function OpportunityDetailPage() {
                             alt={opportunity.title}
                             loading="lazy"
                             className="w-full h-full object-cover"
+                            style={{ objectPosition: opportunity.imagePosition || 'center' }}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full">

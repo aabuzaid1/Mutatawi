@@ -46,6 +46,7 @@ export interface Opportunity {
     status: 'open' | 'closed' | 'completed';
     featured: boolean;
     imageUrl?: string;
+    imagePosition?: string;
     createdAt: Date;
     updatedAt: Date;
 }
