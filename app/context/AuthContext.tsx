@@ -35,8 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (firebaseUser) {
                 const userProfile = await getUserProfile(firebaseUser.uid);
                 setProfile(userProfile);
+                // Set cookie so middleware knows user is authenticated on refresh
+                try {
+                    const token = await firebaseUser.getIdToken();
+                    document.cookie = `firebase-token=${token}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+                } catch { }
             } else {
                 setProfile(null);
+                // Clear cookie on logout
+                document.cookie = 'firebase-token=; path=/; max-age=0';
             }
             setLoading(false);
         });

@@ -13,6 +13,7 @@ import {
     IoMenuOutline,
     IoCloseOutline,
     IoAnalyticsOutline,
+    IoGlobeOutline,
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
 import { signOut } from '@/app/lib/auth';
@@ -46,6 +47,7 @@ export default function Sidebar() {
     const volunteerLinks = [
         { href: '/volunteer', label: 'لوحة التحكم', icon: IoHomeOutline },
         { href: '/volunteer/profile', label: 'الملف الشخصي', icon: IoPersonOutline },
+        { href: '/', label: 'الصفحة الرئيسية', icon: IoGlobeOutline },
     ];
 
     const orgLinks = [
@@ -53,6 +55,7 @@ export default function Sidebar() {
         { href: '/organization/post-opportunity', label: 'نشر فرصة', icon: IoAddCircleOutline },
         { href: '/organization/applicants', label: 'المتقدمون', icon: IoPeopleOutline },
         { href: '/organization/analytics', label: 'الإحصائيات', icon: IoAnalyticsOutline },
+        { href: '/', label: 'الصفحة الرئيسية', icon: IoGlobeOutline },
     ];
 
     const links = isOrg ? orgLinks : volunteerLinks;

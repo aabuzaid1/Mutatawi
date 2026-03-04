@@ -29,22 +29,18 @@ export function middleware(request: NextRequest) {
     const sessionCookie = request.cookies.get('__session')?.value;
     const firebaseToken = request.cookies.get('firebase-token')?.value;
 
-    // إذا لم يوجد أي token، حوّل لصفحة الدخول
+    // Firebase auth is client-side (IndexedDB), so middleware cannot reliably
+    // check auth for page loads. The client-side AuthGuard handles protection.
+    // Only check cookies for non-page requests without Authorization headers.
     if (!sessionCookie && !firebaseToken) {
-        // السماح بالطلبات من العميل التي تحمل Authorization header
-        // (API calls, AJAX requests)
         const authHeader = request.headers.get('Authorization');
         if (authHeader) {
             return NextResponse.next();
         }
 
-        // للطلبات العادية (صفحات HTML)، تحقق إذا كان الطلب من المتصفح
-        const accept = request.headers.get('accept') || '';
-        if (accept.includes('text/html')) {
-            const loginUrl = new URL('/login', request.url);
-            loginUrl.searchParams.set('redirect', pathname);
-            return NextResponse.redirect(loginUrl);
-        }
+        // Let HTML page requests through — AuthGuard on the client will handle redirect
+        // This prevents the "logout on refresh" issue since Firebase tokens
+        // are stored in IndexedDB, not cookies
     }
 
     // إضافة Security Headers لكل الاستجابات
