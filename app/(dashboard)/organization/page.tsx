@@ -182,7 +182,7 @@ export default function OrganizationDashboard() {
                                     </div>
 
                                     <div className="flex flex-wrap gap-2 self-start">
-                                        <Link href="/organization/applicants">
+                                        <Link href={`/organization/applicants?opportunityId=${opp.id}`}>
                                             <Button variant="ghost" size="sm">
                                                 عرض المتقدمين
                                             </Button>
