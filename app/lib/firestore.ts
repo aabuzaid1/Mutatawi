@@ -191,12 +191,34 @@ export async function getApplicationsByOrganization(organizationId: string) {
     );
     const appsSnap = await getDocs(appsQuery);
 
-    return appsSnap.docs.map(doc => ({
+    const applications = appsSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         appliedAt: doc.data().appliedAt?.toDate?.() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
     })) as Application[];
+
+    // Enrich with volunteer phone from user profiles (for apps missing phone)
+    const volunteerIds = Array.from(new Set(applications.map(a => a.volunteerId)));
+    const phoneMap: Record<string, string> = {};
+    // Fetch profiles in parallel (batch of individual gets)
+    await Promise.all(
+        volunteerIds.map(async (vid) => {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', vid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    if (data.phone) phoneMap[vid] = data.phone;
+                }
+            } catch { }
+        })
+    );
+
+    // Merge phone numbers into applications
+    return applications.map(app => ({
+        ...app,
+        volunteerPhone: app.volunteerPhone || phoneMap[app.volunteerId] || '',
+    }));
 }
 
 export async function getApplicationsByVolunteer(volunteerId: string) {
