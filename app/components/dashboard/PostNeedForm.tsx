@@ -10,6 +10,9 @@ import {
     IoPeopleOutline,
     IoImageOutline,
     IoCloseCircleOutline,
+    IoArrowUpOutline,
+    IoRemoveOutline,
+    IoArrowDownOutline,
 } from 'react-icons/io5';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -31,6 +34,7 @@ export default function PostNeedForm({ onSubmit, initialData, submitLabel }: Pos
     const [loading, setLoading] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
+    const [imagePosition, setImagePosition] = useState<string>(initialData?.imagePosition || 'center');
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
         description: initialData?.description || '',
@@ -67,6 +71,7 @@ export default function PostNeedForm({ onSubmit, initialData, submitLabel }: Pos
     const removeImage = () => {
         setImageFile(null);
         setImagePreview(null);
+        setImagePosition('center');
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -115,6 +120,7 @@ export default function PostNeedForm({ onSubmit, initialData, submitLabel }: Pos
             const data = {
                 ...formData,
                 imageUrl,
+                imagePosition,
                 duration: Number(formData.duration),
                 spotsTotal: Number(formData.spotsTotal),
                 skills: formData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
@@ -150,6 +156,7 @@ export default function PostNeedForm({ onSubmit, initialData, submitLabel }: Pos
                             src={imagePreview}
                             alt="معاينة الصورة"
                             className="w-full h-48 sm:h-56 object-cover"
+                            style={{ objectPosition: imagePosition }}
                         />
                         <button
                             type="button"
@@ -158,6 +165,29 @@ export default function PostNeedForm({ onSubmit, initialData, submitLabel }: Pos
                         >
                             <IoCloseCircleOutline size={20} />
                         </button>
+
+                        {/* Image Position Controls */}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-xl p-1">
+                            {[
+                                { value: 'top', label: 'أعلى', icon: <IoArrowUpOutline size={16} /> },
+                                { value: 'center', label: 'وسط', icon: <IoRemoveOutline size={16} /> },
+                                { value: 'bottom', label: 'أسفل', icon: <IoArrowDownOutline size={16} /> },
+                            ].map((pos) => (
+                                <button
+                                    key={pos.value}
+                                    type="button"
+                                    onClick={() => setImagePosition(pos.value)}
+                                    title={pos.label}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${imagePosition === pos.value
+                                            ? 'bg-white text-slate-800 shadow-sm'
+                                            : 'text-white/80 hover:text-white hover:bg-white/15'
+                                        }`}
+                                >
+                                    {pos.icon}
+                                    <span className="hidden sm:inline">{pos.label}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all duration-300 group">
