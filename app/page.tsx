@@ -57,7 +57,7 @@ export default function Home() {
                             انضم إلى مجتمع المتطوعين الذين يصنعون التغيير كل يوم. سجّل الآن وابدأ رحلتك التطوعية.
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-4">
-                            <Link href="/register">
+                            <Link href="/register?type=volunteer">
                                 <motion.span
                                     className="inline-block px-8 py-4 rounded-xl bg-white text-primary-600 font-bold text-lg shadow-lg cursor-pointer"
                                     whileHover={{ scale: 1.05, y: -2, boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3)' }}
@@ -67,7 +67,7 @@ export default function Home() {
                                     سجّل كمتطوع
                                 </motion.span>
                             </Link>
-                            <Link href="/register">
+                            <Link href="/register?type=organization">
                                 <motion.span
                                     className="inline-block px-8 py-4 rounded-xl bg-white/10 backdrop-blur text-white font-bold text-lg border border-white/20 cursor-pointer"
                                     whileHover={{ scale: 1.05, y: -2, backgroundColor: 'rgba(255,255,255,0.2)' }}
