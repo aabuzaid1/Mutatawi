@@ -127,9 +127,10 @@ export async function POST(request: NextRequest) {
             updatedAt: FieldValue.serverTimestamp(),
         };
 
-        // إضافة الهاتف فقط إذا تم تقديمه
-        if (phone) {
-            applicationData.volunteerPhone = phone;
+        // إضافة الهاتف: من الطلب أو من بروفايل المتطوع
+        const volunteerPhone = phone || volunteerData.phone || '';
+        if (volunteerPhone) {
+            applicationData.volunteerPhone = volunteerPhone;
         }
 
         await applicationRef.set(applicationData);
