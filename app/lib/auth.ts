@@ -70,7 +70,8 @@ export async function signUp(
     displayName: string,
     role: 'volunteer' | 'organization',
     phone?: string,
-    governorate?: string
+    governorate?: string,
+    emailNotifications?: boolean
 ): Promise<User> {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
@@ -83,6 +84,7 @@ export async function signUp(
         email: user.email!,
         displayName,
         role,
+        emailNotifications: role === 'volunteer' ? (emailNotifications ?? false) : false,
         createdAt: new Date(),
         updatedAt: new Date(),
     };

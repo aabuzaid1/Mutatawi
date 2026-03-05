@@ -10,6 +10,7 @@ import {
     IoPencilOutline,
     IoSaveOutline,
     IoLockClosedOutline,
+    IoNotificationsOutline,
 } from 'react-icons/io5';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
@@ -25,6 +26,8 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [stats, setStats] = useState({ total: 0, accepted: 0 });
+    const [emailNotifications, setEmailNotifications] = useState(false);
+    const [savingNotif, setSavingNotif] = useState(false);
     const [formData, setFormData] = useState({
         displayName: '',
         email: '',
@@ -52,6 +55,7 @@ export default function ProfilePage() {
                 bio: profile.bio || '',
                 skills: profile.skills?.join('، ') || '',
             });
+            setEmailNotifications(profile.emailNotifications ?? false);
         }
     }, [profile]);
 
@@ -125,6 +129,24 @@ export default function ProfilePage() {
 
     // Check if user signed in with Google (no password to change)
     const isGoogleUser = user?.providerData?.some(p => p.providerId === 'google.com');
+
+    const handleToggleNotifications = async () => {
+        if (!user) return;
+        const newValue = !emailNotifications;
+        setSavingNotif(true);
+        try {
+            await updateUserProfile(user.uid, { emailNotifications: newValue });
+            setEmailNotifications(newValue);
+            if (profile) {
+                setProfile({ ...profile, emailNotifications: newValue });
+            }
+            toast.success(newValue ? 'تم تفعيل إشعارات الفرص التطوعية ✉️' : 'تم إيقاف إشعارات الفرص التطوعية');
+        } catch (error) {
+            toast.error('حدث خطأ أثناء تحديث الإعدادات');
+        } finally {
+            setSavingNotif(false);
+        }
+    };
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -302,6 +324,39 @@ export default function ProfilePage() {
                     </form>
                 </motion.div>
             )}
+
+            {/* Notification Settings */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.27 }}
+                className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 mt-6"
+            >
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <IoNotificationsOutline size={20} className="text-primary-500" />
+                    إعدادات الإشعارات
+                </h3>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <div>
+                        <p className="text-sm font-bold text-slate-700">إشعارات الفرص التطوعية</p>
+                        <p className="text-xs text-slate-400 mt-0.5">تلقي إيميل عند نشر فرص تطوعية جديدة</p>
+                    </div>
+                    <button
+                        onClick={handleToggleNotifications}
+                        disabled={savingNotif}
+                        className={`relative w-12 h-7 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-300 ${emailNotifications
+                                ? 'bg-primary-500'
+                                : 'bg-slate-300'
+                            } ${savingNotif ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                        aria-label="تفعيل/إيقاف إشعارات الفرص التطوعية"
+                    >
+                        <span
+                            className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${emailNotifications ? 'right-0.5' : 'right-[22px]'
+                                }`}
+                        />
+                    </button>
+                </div>
+            </motion.div>
 
             {/* Stats */}
             <motion.div

@@ -15,6 +15,7 @@ import {
     IoCheckmarkCircle,
     IoBusinessOutline,
     IoPeopleOutline,
+    IoNotificationsOutline,
 } from 'react-icons/io5';
 import { signUp, signInWithGoogle, signOut } from '@/app/lib/auth';
 import Input from '../ui/Input';
@@ -94,6 +95,7 @@ export default function RegisterForm() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [phone, setPhone] = useState('');
     const [governorate, setGovernorate] = useState('');
+    const [emailNotifications, setEmailNotifications] = useState(true);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -144,7 +146,7 @@ export default function RegisterForm() {
         setLoading(true);
 
         try {
-            await signUp(email, password, name, selectedType, phone, governorate);
+            await signUp(email, password, name, selectedType, phone, governorate, selectedType === 'volunteer' ? emailNotifications : false);
             trackEvent('register_success', { role: selectedType });
             toast.success('تم إرسال إيميل التحقق، يرجى تفعيل حسابك لتتمكن من الدخول ✉️', {
                 duration: 5000,
@@ -392,6 +394,28 @@ export default function RegisterForm() {
                                         icon={<IoLockClosedOutline size={18} />}
                                         required
                                     />
+
+                                    {/* Email Notifications Opt-in (volunteers only) */}
+                                    {selectedType === 'volunteer' && (
+                                        <div className="flex items-start gap-3 p-4 rounded-xl bg-primary-50 border border-primary-100">
+                                            <input
+                                                type="checkbox"
+                                                id="emailNotifications"
+                                                checked={emailNotifications}
+                                                onChange={(e) => setEmailNotifications(e.target.checked)}
+                                                className="mt-0.5 w-5 h-5 rounded border-primary-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                            />
+                                            <label htmlFor="emailNotifications" className="cursor-pointer">
+                                                <span className="flex items-center gap-1.5 text-sm font-bold text-primary-700 mb-0.5">
+                                                    <IoNotificationsOutline size={16} />
+                                                    إشعارات الفرص التطوعية
+                                                </span>
+                                                <span className="text-xs text-primary-600/80 leading-relaxed">
+                                                    أرغب بتلقي إشعارات عن الفرص التطوعية الجديدة على بريدي الإلكتروني
+                                                </span>
+                                            </label>
+                                        </div>
+                                    )}
 
                                     <Button type="submit" variant="primary" className="w-full" loading={loading}>
                                         إنشاء الحساب

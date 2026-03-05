@@ -294,3 +294,45 @@ export async function sendApplicationRejected(
     }),
   });
 }
+
+/* ==================== NEW OPPORTUNITY NOTIFICATION (to subscribed volunteers) ==================== */
+export async function sendNewOpportunityNotification(
+  toEmail: string,
+  volunteerName: string,
+  opportunityTitle: string,
+  opportunityUrl: string
+) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${volunteerName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      تم نشر فرصة تطوعية جديدة على منصة متطوع قد تهمك:
+    </p>
+    ${infoCard(opportunityTitle, '#eef2ff', '#c7d2fe', '#3730a3', '🌟')}
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      بادر بالتقديم الآن قبل اكتمال العدد المطلوب!
+    </p>
+    ${ctaButton('عرض الفرصة والتقديم', opportunityUrl, '#6366f1')}
+  `;
+
+  const footerExtra = `
+    <p style="margin:0 0 8px;font-size:12px;color:#94a3b8;">
+      📩 تصلك هذه الرسالة لأنك مشترك في إشعارات الفرص التطوعية.
+      <br/>يمكنك إيقاف الإشعارات من <a href="${SITE_URL}/volunteer/profile" style="color:#6366f1;text-decoration:none;font-weight:600;">ملفك الشخصي</a>.
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
+    to: toEmail,
+    subject: `🌟 فرصة تطوعية جديدة — ${opportunityTitle}`,
+    html: emailLayout({
+      headerColor: '#eef2ff',
+      headerTitle: 'فرصة تطوعية جديدة!',
+      headerIcon: '🌟',
+      bodyHtml,
+      footerExtra,
+    }),
+  });
+}
