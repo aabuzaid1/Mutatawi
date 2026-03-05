@@ -14,6 +14,7 @@ export interface UserProfile {
     organizationName?: string;
     website?: string;
     verified?: boolean;
+    emailNotifications?: boolean;
     // Stats
     hoursVolunteered?: number;
     opportunitiesCompleted?: number;
