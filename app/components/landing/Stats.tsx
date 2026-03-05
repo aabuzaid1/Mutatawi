@@ -3,6 +3,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { IoPeopleOutline, IoTimeOutline, IoBusinessOutline, IoHeartOutline } from 'react-icons/io5';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/app/lib/firebase';
 
 function AnimatedCounter({ target, duration = 2.5 }: { target: number; duration?: number }) {
     const [count, setCount] = useState(0);
@@ -10,7 +12,7 @@ function AnimatedCounter({ target, duration = 2.5 }: { target: number; duration?
     const isInView = useInView(ref, { once: true, margin: '-80px' });
 
     useEffect(() => {
-        if (!isInView) return;
+        if (!isInView || target === 0) return;
         const startTime = performance.now();
         let animId: number;
 
@@ -34,10 +36,58 @@ function AnimatedCounter({ target, duration = 2.5 }: { target: number; duration?
 }
 
 export default function Stats() {
+    const [volunteerCount, setVolunteerCount] = useState(0);
+    const [totalHours, setTotalHours] = useState(0);
+    const [orgCount, setOrgCount] = useState(0);
+    const [oppCount, setOppCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchStats() {
+            try {
+                // 1. Count volunteers (users with role = 'volunteer')
+                const volunteersQuery = query(
+                    collection(db, 'users'),
+                    where('role', '==', 'volunteer')
+                );
+                const volunteersSnap = await getDocs(volunteersQuery);
+                setVolunteerCount(volunteersSnap.size);
+
+                // Sum volunteer hours
+                let hours = 0;
+                volunteersSnap.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.hoursVolunteered) {
+                        hours += data.hoursVolunteered;
+                    }
+                });
+                setTotalHours(Math.round(hours));
+
+                // 2. Count organizations (users with role = 'organization')
+                const orgsQuery = query(
+                    collection(db, 'users'),
+                    where('role', '==', 'organization')
+                );
+                const orgsSnap = await getDocs(orgsQuery);
+                setOrgCount(orgsSnap.size);
+
+                // 3. Count opportunities
+                const oppsSnap = await getDocs(collection(db, 'opportunities'));
+                setOppCount(oppsSnap.size);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchStats();
+    }, []);
+
     const stats = [
         {
             icon: IoPeopleOutline,
-            value: 200,
+            value: volunteerCount,
             label: 'متطوع نشط',
             color: 'from-primary-500 to-primary-600',
             bgColor: 'bg-primary-50',
@@ -45,7 +95,7 @@ export default function Stats() {
         },
         {
             icon: IoTimeOutline,
-            value: 100,
+            value: totalHours,
             label: 'ساعة تطوعية',
             color: 'from-success-500 to-success-600',
             bgColor: 'bg-success-50',
@@ -53,7 +103,7 @@ export default function Stats() {
         },
         {
             icon: IoBusinessOutline,
-            value: 5,
+            value: orgCount,
             label: 'منظمة شريكة',
             color: 'from-warning-500 to-warning-600',
             bgColor: 'bg-warning-50',
@@ -61,7 +111,7 @@ export default function Stats() {
         },
         {
             icon: IoHeartOutline,
-            value: 20,
+            value: oppCount,
             label: 'فرصة تطوعية',
             color: 'from-danger-500 to-danger-600',
             bgColor: 'bg-danger-50',
@@ -99,7 +149,11 @@ export default function Stats() {
                                     <Icon className={stat.textColor} size={28} />
                                 </motion.div>
                                 <h3 className="text-3xl sm:text-4xl font-black text-slate-800 mb-1">
-                                    <AnimatedCounter target={stat.value} />+
+                                    {loading ? (
+                                        <span className="inline-block w-16 h-8 bg-slate-200 rounded animate-pulse" />
+                                    ) : (
+                                        <><AnimatedCounter target={stat.value} />+</>
+                                    )}
                                 </h3>
                                 <p className="text-slate-500 font-medium">{stat.label}</p>
                             </motion.div>
