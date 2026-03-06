@@ -363,6 +363,7 @@ export async function sendOtpEmail(
     from: FROM_EMAIL,
     to: toEmail,
     subject: `🔐 رمز التحقق الخاص بك — ${code}`,
+    text: `مرحباً،\nلإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:\n\n${code}\n\nهذا الرمز صالح لمدة 5 دقائق فقط.\nإذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.`,
     html: emailLayout({
       headerColor: '#eef2ff',
       headerTitle: 'رمز التحقق',
