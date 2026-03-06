@@ -58,16 +58,15 @@ export async function POST(request: NextRequest) {
             try {
                 await adminAuth.getUserByEmail(normalizedEmail);
             } catch (error: any) {
-                // User doesn't exist. Fake success to prevent enumeration.
                 if (error.code === 'auth/user-not-found') {
-                    console.log(`[OTP] Security: Faked success for non-existent email - ${normalizedEmail}`);
-                    // Return exactly the same success message
+                    console.log(`[OTP] Security: Faked success for non-existent email`);
                     return NextResponse.json({
                         success: true,
                         message: 'تم إرسال رمز التحقق',
                     });
                 }
-                throw error;
+                // Any other error — log it but continue sending OTP
+                console.warn(`[OTP] getUserByEmail warning: ${error.code || error.message} — continuing anyway`);
             }
         }
 
