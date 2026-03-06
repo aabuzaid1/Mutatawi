@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoMailOutline, IoCheckmarkCircleOutline, IoArrowBackOutline, IoLockClosedOutline, IoShieldCheckmarkOutline } from 'react-icons/io5';
@@ -16,9 +16,44 @@ export default function ForgotPasswordPage() {
 
     // Form States
     const [email, setEmail] = useState('');
-    const [code, setCode] = useState('');
+    const [code, setCode] = useState(['', '', '', '', '', '']);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    const handleOtpChange = (index: number, value: string) => {
+        // Only allow digits
+        const digit = value.replace(/\D/g, '').slice(-1);
+        const newCode = [...code];
+        newCode[index] = digit;
+        setCode(newCode);
+
+        // Auto-focus next box
+        if (digit && index < 5) {
+            otpRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Backspace' && !code[index] && index > 0) {
+            otpRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleOtpPaste = (e: React.ClipboardEvent) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        if (pasted.length > 0) {
+            const newCode = [...code];
+            for (let i = 0; i < 6; i++) {
+                newCode[i] = pasted[i] || '';
+            }
+            setCode(newCode);
+            // Focus the next empty or last box
+            const focusIndex = Math.min(pasted.length, 5);
+            otpRefs.current[focusIndex]?.focus();
+        }
+    };
 
     // --- Step 1: Send OTP to Email ---
     const handleSendOtp = async (e?: React.FormEvent) => {
@@ -41,7 +76,7 @@ export default function ForgotPasswordPage() {
 
             toast.success('تم إرسال رمز التحقق إلى بريدك الإلكتروني!');
             setStep('otp');
-            setCode(''); // Reset code input when moving to OTP step
+            setCode(['', '', '', '', '', '']); // Reset code input when moving to OTP step
         } catch (error: any) {
             toast.error(error.message || 'حدث خطأ أثناء الإرسال');
         } finally {
@@ -52,7 +87,8 @@ export default function ForgotPasswordPage() {
     // --- Step 2: Verify OTP ---
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (code.length < 6) {
+        const codeStr = code.join('');
+        if (codeStr.length < 6) {
             toast.error('يرجى إدخال رمز التحقق المكون من 6 أرقام');
             return;
         }
@@ -62,7 +98,7 @@ export default function ForgotPasswordPage() {
             const res = await fetch('/api/auth/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code, keepAlive: true }),
+                body: JSON.stringify({ email, code: code.join(''), keepAlive: true }),
             });
 
             const data = await res.json();
@@ -193,19 +229,25 @@ export default function ForgotPasswordPage() {
                                 <p className="font-bold text-slate-800" dir="ltr">{email}</p>
                             </div>
 
-                            <Input
-                                label="رمز التحقق (OTP)"
-                                type="text"
-                                placeholder="123456"
-                                value={code}
-                                onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setCode(val);
-                                }}
-                                required
-                                disabled={loading}
-                                className="text-center text-lg tracking-widest font-bold"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-3 text-center">رمز التحقق (OTP)</label>
+                                <div className="flex gap-2 sm:gap-3 justify-center" dir="ltr" onPaste={handleOtpPaste}>
+                                    {code.map((digit, i) => (
+                                        <input
+                                            key={i}
+                                            ref={(el) => { otpRefs.current[i] = el; }}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={1}
+                                            value={digit}
+                                            onChange={(e) => handleOtpChange(i, e.target.value)}
+                                            onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                            disabled={loading}
+                                            className="w-11 h-13 sm:w-13 sm:h-14 border-2 border-slate-200 rounded-xl text-center text-xl sm:text-2xl font-bold text-slate-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200 disabled:opacity-50 bg-slate-50 focus:bg-white"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
 
                             <Button type="submit" variant="primary" className="w-full" loading={loading}>
                                 التحقق والمتابعة

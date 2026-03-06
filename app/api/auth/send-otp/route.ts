@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Send email
-        await sendOtpEmail(normalizedEmail, code);
+        await sendOtpEmail(normalizedEmail, code, purpose);
 
         const maskedEmail = normalizedEmail.replace(/(.{2}).*(@.*)/, '$1***$2');
         console.log(`[OTP] ✅ Sent to ${maskedEmail}`);

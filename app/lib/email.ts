@@ -340,11 +340,22 @@ export async function sendNewOpportunityNotification(
 /* ==================== OTP VERIFICATION EMAIL ==================== */
 export async function sendOtpEmail(
   toEmail: string,
-  code: string
+  code: string,
+  purpose?: string
 ) {
+  const isReset = purpose === 'reset_password';
+  const contextText = isReset
+    ? 'لإعادة تعيين كلمة المرور الخاصة بك، يرجى إدخال رمز التحقق التالي:'
+    : 'لإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:';
+  const subjectText = isReset
+    ? `🔑 رمز إعادة تعيين كلمة المرور — ${code}`
+    : `🔐 رمز التحقق الخاص بك — ${code}`;
+  const headerTitle = isReset ? 'إعادة تعيين كلمة المرور' : 'رمز التحقق';
+  const headerIcon = isReset ? '🔑' : '🔐';
+
   const bodyHtml = `
     <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;text-align:center;">
-      لإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:
+      ${contextText}
     </p>
     <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:16px;padding:28px 20px;margin:24px 0;text-align:center;">
       <p style="font-size:36px;font-weight:900;color:#ffffff;letter-spacing:12px;margin:0;font-family:'Courier New',monospace;">
@@ -362,12 +373,12 @@ export async function sendOtpEmail(
   await getTransporter().sendMail({
     from: FROM_EMAIL,
     to: toEmail,
-    subject: `🔐 رمز التحقق الخاص بك — ${code}`,
-    text: `مرحباً،\nلإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:\n\n${code}\n\nهذا الرمز صالح لمدة 5 دقائق فقط.\nإذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.`,
+    subject: subjectText,
+    text: `مرحباً،\n${contextText}\n\n${code}\n\nهذا الرمز صالح لمدة 5 دقائق فقط.\nإذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.`,
     html: emailLayout({
       headerColor: '#eef2ff',
-      headerTitle: 'رمز التحقق',
-      headerIcon: '🔐',
+      headerTitle,
+      headerIcon,
       bodyHtml,
     }),
   });
