@@ -142,6 +142,5 @@ npm run dev
 
 <div align="center">
 
-صُنع بـ ❤️ في فلسطين 🇵🇸
 
 </div>
