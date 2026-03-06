@@ -249,8 +249,7 @@ export default function RegisterForm() {
             await signUp(email, password, name, selectedType, phone, governorate, selectedType === 'volunteer' ? emailNotifications : false);
             trackEvent('register_success', { role: selectedType });
             toast.success('تم إنشاء حسابك بنجاح! 🎉', { duration: 5000 });
-            await signOut();
-            router.push('/verify-email');
+            router.push(`/${selectedType}`);
         } catch (error: any) {
             if (error.code === 'auth/email-already-in-use') {
                 setOtpError('هذا البريد الإلكتروني مستخدم بالفعل');
