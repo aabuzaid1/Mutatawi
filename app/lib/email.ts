@@ -336,3 +336,38 @@ export async function sendNewOpportunityNotification(
     }),
   });
 }
+
+/* ==================== OTP VERIFICATION EMAIL ==================== */
+export async function sendOtpEmail(
+  toEmail: string,
+  code: string
+) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;text-align:center;">
+      لإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:
+    </p>
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:16px;padding:28px 20px;margin:24px 0;text-align:center;">
+      <p style="font-size:36px;font-weight:900;color:#ffffff;letter-spacing:12px;margin:0;font-family:'Courier New',monospace;">
+        ${code}
+      </p>
+    </div>
+    <p style="font-size:14px;color:#64748b;line-height:1.8;margin:0 0 8px;text-align:center;">
+      ⏱️ هذا الرمز صالح لمدة <strong>5 دقائق</strong> فقط.
+    </p>
+    <p style="font-size:13px;color:#94a3b8;line-height:1.8;margin:0;text-align:center;">
+      إذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
+    to: toEmail,
+    subject: `🔐 رمز التحقق الخاص بك — ${code}`,
+    html: emailLayout({
+      headerColor: '#eef2ff',
+      headerTitle: 'رمز التحقق',
+      headerIcon: '🔐',
+      bodyHtml,
+    }),
+  });
+}
