@@ -14,6 +14,7 @@ interface FeedbackModalProps {
     opportunityTitle: string;
     volunteerId: string;
     volunteerName: string;
+    volunteerAvatar?: string;
 }
 
 export default function FeedbackModal({
@@ -23,6 +24,7 @@ export default function FeedbackModal({
     opportunityTitle,
     volunteerId,
     volunteerName,
+    volunteerAvatar,
 }: FeedbackModalProps) {
     const [rating, setRating] = useState(0);
     const [hoveredRating, setHoveredRating] = useState(0);
@@ -48,6 +50,7 @@ export default function FeedbackModal({
                 opportunityTitle,
                 volunteerId,
                 volunteerName,
+                volunteerAvatar,
                 rating,
                 comment: comment.trim(),
             });
