@@ -87,6 +87,7 @@ export interface Feedback {
     volunteerAvatar?: string;
     rating: number;
     comment: string;
+    imageUrl?: string;
     createdAt: Date;
 }
 

@@ -219,8 +219,8 @@ export default function VolunteerDashboard() {
                                                     {opp.duration} {opp.duration === 1 ? 'ساعة' : 'ساعات'}
                                                 </span>
                                             )}
-                                            {/* Rating button - only if not yet rated */}
-                                            {!opp.hasRated && (
+                                            {/* Rating button */}
+                                            {!opp.hasRated ? (
                                                 <button
                                                     onClick={() => setFeedbackModal({
                                                         isOpen: true,
@@ -232,12 +232,18 @@ export default function VolunteerDashboard() {
                                                     <IoStarOutline size={13} />
                                                     قيّم تجربتك
                                                 </button>
-                                            )}
-                                            {opp.hasRated && (
-                                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                            ) : (
+                                                <button
+                                                    onClick={() => setFeedbackModal({
+                                                        isOpen: true,
+                                                        opportunityId: opp.opportunityId,
+                                                        opportunityTitle: opp.opportunityTitle,
+                                                    })}
+                                                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                                                >
                                                     <IoStarOutline size={13} />
-                                                    تم التقييم
-                                                </span>
+                                                    تعديل التقييم
+                                                </button>
                                             )}
                                         </div>
                                     </div>

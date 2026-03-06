@@ -357,6 +357,30 @@ export async function createFeedback(data: Omit<Feedback, 'id' | 'createdAt'>) {
     return docRef.id;
 }
 
+export async function updateFeedback(id: string, data: Partial<Feedback>) {
+    await updateDoc(doc(db, 'feedbacks', id), {
+        ...data,
+        updatedAt: serverTimestamp(),
+    });
+}
+
+export async function getFeedbackByVolunteerAndOpp(opportunityId: string, volunteerId: string): Promise<Feedback | null> {
+    const q = query(
+        collection(db, 'feedbacks'),
+        where('opportunityId', '==', opportunityId),
+        where('volunteerId', '==', volunteerId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    const docData = snap.docs[0];
+    return {
+        id: docData.id,
+        ...docData.data(),
+        createdAt: docData.data().createdAt?.toDate?.() || new Date(),
+    } as Feedback;
+}
+
 export async function hasVolunteerRated(opportunityId: string, volunteerId: string): Promise<boolean> {
     const q = query(
         collection(db, 'feedbacks'),

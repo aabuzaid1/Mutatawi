@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoStarSharp, IoStarOutline, IoCloseOutline, IoCheckmarkCircleOutline } from 'react-icons/io5';
 import Button from '../ui/Button';
-import { createFeedback } from '@/app/lib/firestore';
+import { createFeedback, getFeedbackByVolunteerAndOpp, updateFeedback } from '@/app/lib/firestore';
+import { storage } from '@/app/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
 
 interface FeedbackModalProps {
@@ -29,8 +31,54 @@ export default function FeedbackModal({
     const [rating, setRating] = useState(0);
     const [hoveredRating, setHoveredRating] = useState(0);
     const [comment, setComment] = useState('');
+    const [existingFeedbackId, setExistingFeedbackId] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const [initializing, setInitializing] = useState(true);
     const [submitted, setSubmitted] = useState(false);
+
+    // Load existing feedback if any
+    useEffect(() => {
+        let mounted = true;
+        async function loadExisting() {
+            if (!isOpen || !opportunityId || !volunteerId) return;
+            setInitializing(true);
+            try {
+                const existing = await getFeedbackByVolunteerAndOpp(opportunityId, volunteerId);
+                if (existing && mounted) {
+                    setExistingFeedbackId(existing.id);
+                    setRating(existing.rating);
+                    setComment(existing.comment);
+                    if (existing.imageUrl) setImagePreview(existing.imageUrl);
+                } else if (mounted) {
+                    // Reset if no existing feedback is found for this new opportunity
+                    setExistingFeedbackId(null);
+                    setRating(0);
+                    setComment('');
+                    setImagePreview('');
+                    setImageFile(null);
+                }
+            } catch (error) {
+                console.error("Error loading existing feedback:", error);
+            } finally {
+                if (mounted) setInitializing(false);
+            }
+        }
+        loadExisting();
+        return () => { mounted = false; };
+    }, [isOpen, opportunityId, volunteerId]);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('حجم الصورة الكبرى هو 5 ميجابايت');
+            return;
+        }
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,17 +93,36 @@ export default function FeedbackModal({
 
         setLoading(true);
         try {
-            await createFeedback({
-                opportunityId,
-                opportunityTitle,
-                volunteerId,
-                volunteerName,
-                volunteerAvatar,
-                rating,
-                comment: comment.trim(),
-            });
-            setSubmitted(true);
-            toast.success('شكراً لتقييمك! 🎉');
+            let photoUrl = imagePreview; // Use existing URL by default if no new file is uploaded
+
+            if (imageFile) {
+                const storageRef = ref(storage, `feedbacks/${opportunityId}_${volunteerId}_${Date.now()}`);
+                await uploadBytes(storageRef, imageFile);
+                photoUrl = await getDownloadURL(storageRef);
+            }
+
+            if (existingFeedbackId) {
+                await updateFeedback(existingFeedbackId, {
+                    rating,
+                    comment: comment.trim(),
+                    imageUrl: photoUrl || undefined,
+                });
+                setSubmitted(true);
+                toast.success('تم تحديث التقييم بنجاح! 🎉');
+            } else {
+                await createFeedback({
+                    opportunityId,
+                    opportunityTitle,
+                    volunteerId,
+                    volunteerName,
+                    volunteerAvatar,
+                    rating,
+                    comment: comment.trim(),
+                    imageUrl: photoUrl || undefined,
+                });
+                setSubmitted(true);
+                toast.success('شكراً لتقييمك! 🎉');
+            }
         } catch (error: any) {
             if (error.message?.includes('مسبقاً')) {
                 toast.error('لقد أرسلت تقييمك لهذه الفرصة مسبقاً');
@@ -71,6 +138,9 @@ export default function FeedbackModal({
         setRating(0);
         setHoveredRating(0);
         setComment('');
+        setImageFile(null);
+        setImagePreview('');
+        setExistingFeedbackId(null);
         setSubmitted(false);
         onClose();
     };
@@ -166,13 +236,51 @@ export default function FeedbackModal({
                                         />
                                     </div>
 
+                                    {/* Additional Photo */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                                            إضافة صورة (اختياري)
+                                        </label>
+                                        <div className="relative border-2 border-dashed border-slate-200 rounded-xl hover:border-primary-400 transition-colors bg-slate-50 flex items-center justify-center p-4 min-h-[120px] overflow-hidden group">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            {imagePreview ? (
+                                                <>
+                                                    <img src={imagePreview} alt="Feedback preview" className="absolute inset-0 w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                        <p className="text-white text-sm font-bold">تغيير الصورة</p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="text-center">
+                                                    <span className="text-3xl mb-1 block">📸</span>
+                                                    <p className="text-sm text-slate-500 font-medium">اختر صورة أو اسحبها هنا</p>
+                                                    <p className="text-xs text-slate-400 mt-1">PNG, JPG حتى 5 ميجابايت</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {imagePreview && (
+                                            <button
+                                                type="button"
+                                                onClick={() => { setImageFile(null); setImagePreview(''); }}
+                                                className="text-xs text-danger-500 hover:text-danger-600 font-bold mt-2"
+                                            >
+                                                إزالة الصورة
+                                            </button>
+                                        )}
+                                    </div>
+
                                     <Button
                                         type="submit"
                                         variant="primary"
                                         className="w-full"
                                         loading={loading}
                                     >
-                                        إرسال التقييم
+                                        {existingFeedbackId ? 'تحديث التقييم' : 'إرسال التقييم'}
                                     </Button>
                                 </motion.form>
                             ) : (
