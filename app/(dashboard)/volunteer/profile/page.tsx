@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
     IoPersonOutline,
@@ -11,8 +11,7 @@ import {
     IoSaveOutline,
     IoLockClosedOutline,
     IoNotificationsOutline,
-    IoSwapHorizontalOutline,
-    IoWarningOutline,
+    IoCameraOutline,
 } from 'react-icons/io5';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
@@ -20,7 +19,10 @@ import Badge from '@/app/components/ui/Badge';
 import { useAuth } from '@/app/hooks/useAuth';
 import { updateUserProfile } from '@/app/lib/firestore';
 import { getApplicationsByVolunteer } from '@/app/lib/firestore';
-import { changePassword, changeEmail } from '@/app/lib/auth';
+import { changePassword } from '@/app/lib/auth';
+import { storage, auth } from '@/app/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { updateProfile } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -47,12 +49,9 @@ export default function ProfilePage() {
     });
     const [changingPassword, setChangingPassword] = useState(false);
 
-    // Email change state
-    const [emailChangeData, setEmailChangeData] = useState({
-        newEmail: '',
-        password: '',
-    });
-    const [changingEmail, setChangingEmail] = useState(false);
+    // Profile picture state
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -139,35 +138,39 @@ export default function ProfilePage() {
     // Check if user signed in with Google (no password to change)
     const isGoogleUser = user?.providerData?.some(p => p.providerId === 'google.com');
 
-    const handleChangeEmail = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!emailChangeData.newEmail || !emailChangeData.password) {
-            toast.error('يرجى تعبئة جميع الحقول');
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('حجم الصورة الكبرى هو 5 ميجابايت');
+            if (fileInputRef.current) fileInputRef.current.value = '';
             return;
         }
-        setChangingEmail(true);
+
+        setUploadingAvatar(true);
         try {
-            await changeEmail(emailChangeData.password, emailChangeData.newEmail);
-            toast.success('تم تغيير البريد الإلكتروني بنجاح! تم إرسال رسالة تحقق للبريد الجديد ✉️', { duration: 6000 });
-            setFormData({ ...formData, email: emailChangeData.newEmail });
+            const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { photoURL: downloadURL });
+            }
+
+            await updateUserProfile(user.uid, { photoURL: downloadURL });
+
             if (profile) {
-                setProfile({ ...profile, email: emailChangeData.newEmail });
+                setProfile({ ...profile, photoURL: downloadURL });
             }
-            setEmailChangeData({ newEmail: '', password: '' });
-        } catch (error: any) {
-            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                toast.error('كلمة المرور غير صحيحة');
-            } else if (error.code === 'auth/invalid-email') {
-                toast.error('البريد الإلكتروني الجديد غير صحيح. يرجى إدخال بريد إلكتروني صحيح.', { duration: 5000 });
-            } else if (error.code === 'auth/email-already-in-use') {
-                toast.error('هذا البريد الإلكتروني مستخدم بالفعل من حساب آخر');
-            } else if (error.code === 'auth/requires-recent-login') {
-                toast.error('يرجى تسجيل الخروج وإعادة الدخول ثم المحاولة مرة أخرى');
-            } else {
-                toast.error('حدث خطأ أثناء تغيير البريد الإلكتروني');
-            }
+
+            toast.success('تم تحديث الصورة الشخصية بنجاح! 📸');
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            toast.error('حدث خطأ أثناء رفع الصورة. حاول مرة أخرى.');
         } finally {
-            setChangingEmail(false);
+            setUploadingAvatar(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -205,22 +208,46 @@ export default function ProfilePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden mb-6"
+                className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-6"
             >
                 {/* Cover */}
-                <div className="h-32 gradient-primary relative">
-                    <div className="absolute -bottom-12 right-8">
-                        <div className="w-24 h-24 rounded-2xl bg-white shadow-card flex items-center justify-center border-4 border-white">
-                            {profile?.photoURL ? (
-                                <img src={profile.photoURL} alt={profile.displayName} className="w-full h-full rounded-xl object-cover" />
+                <div className="h-40 bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 relative">
+                    <div className="absolute -bottom-16 right-8">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleAvatarUpload}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingAvatar}
+                            className="relative w-32 h-32 rounded-full bg-white shadow-xl flex items-center justify-center border-4 border-white group overflow-hidden transition-transform duration-300 hover:scale-[1.03]"
+                            aria-label="تغيير الصورة الشخصية"
+                        >
+                            {uploadingAvatar ? (
+                                <div className="w-8 h-8 rounded-full border-4 border-primary-100 border-t-primary-500 animate-spin" />
+                            ) : profile?.photoURL ? (
+                                <>
+                                    <img src={profile.photoURL} alt={formData.displayName} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                        <IoCameraOutline size={32} className="text-white drop-shadow-md" />
+                                    </div>
+                                </>
                             ) : (
-                                <span className="text-4xl">👤</span>
+                                <>
+                                    <span className="text-5xl">👤</span>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white">
+                                        <IoCameraOutline size={32} className="drop-shadow-md" />
+                                    </div>
+                                </>
                             )}
-                        </div>
+                        </button>
                     </div>
                 </div>
 
-                <div className="pt-16 pb-6 px-8">
+                <div className="pt-20 pb-6 px-8">
                     <div className="flex items-start justify-between">
                         <div>
                             <h2 className="text-2xl font-bold text-slate-800">{formData.displayName || 'المستخدم'}</h2>
@@ -310,61 +337,7 @@ export default function ProfilePage() {
                 </div>
             </motion.div>
 
-            {/* Change Email Section */}
-            {!isGoogleUser && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 mt-6"
-                >
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <IoSwapHorizontalOutline size={20} className="text-primary-500" />
-                        تغيير البريد الإلكتروني
-                    </h3>
 
-                    {/* Warning Banner */}
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 mb-5">
-                        <IoWarningOutline size={22} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="text-sm font-bold text-amber-800">هل بريدك الإلكتروني صحيح؟</p>
-                            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                                إذا كان بريدك الإلكتروني غير موجود أو غير صحيح، لن تتمكن من استلام الإشعارات والتنبيهات. يرجى تحديثه ببريد إلكتروني فعّال.
-                            </p>
-                        </div>
-                    </div>
-
-                    <form onSubmit={handleChangeEmail} className="space-y-4">
-                        <Input
-                            label="البريد الإلكتروني الجديد"
-                            type="email"
-                            placeholder="example@email.com"
-                            value={emailChangeData.newEmail}
-                            onChange={(e) => setEmailChangeData({ ...emailChangeData, newEmail: e.target.value })}
-                            icon={<IoMailOutline size={18} />}
-                            required
-                        />
-                        <Input
-                            label="كلمة المرور الحالية (للتحقق)"
-                            type="password"
-                            placeholder="••••••••"
-                            value={emailChangeData.password}
-                            onChange={(e) => setEmailChangeData({ ...emailChangeData, password: e.target.value })}
-                            icon={<IoLockClosedOutline size={18} />}
-                            required
-                        />
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            className="w-full"
-                            loading={changingEmail}
-                            icon={<IoSwapHorizontalOutline size={16} />}
-                        >
-                            تغيير البريد الإلكتروني
-                        </Button>
-                    </form>
-                </motion.div>
-            )}
 
             {/* Change Password Section */}
             {!isGoogleUser && (
