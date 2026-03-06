@@ -137,44 +137,70 @@ export default function Testimonials() {
                                 boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.08)',
                                 transition: { type: 'spring', stiffness: 300, damping: 20 }
                             }}
-                            className="bg-white rounded-2xl p-6 border border-slate-100 shadow-soft relative overflow-hidden group"
+                            className={`rounded-2xl border border-slate-100 shadow-soft relative overflow-hidden group min-h-[250px] flex flex-col justify-end ${feedback.imageUrl ? '' : 'bg-white p-6'
+                                }`}
                         >
-                            {/* Quote decoration */}
-                            <div className="absolute top-4 left-4 text-5xl text-primary-100 font-serif leading-none select-none">
-                                "
-                            </div>
+                            {/* Background Image if available */}
+                            {feedback.imageUrl && (
+                                <div className="absolute inset-0 z-0">
+                                    <img
+                                        src={feedback.imageUrl}
+                                        alt="Feedback"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                        loading="lazy"
+                                    />
+                                    {/* Gradient overlay for readability */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/70 to-slate-900/20" />
+                                </div>
+                            )}
 
-                            {/* Stars */}
-                            <div className="mb-4 relative z-10">
-                                {renderStars(feedback.rating)}
-                            </div>
-
-                            {/* Comment */}
-                            <p className="text-slate-600 leading-relaxed mb-5 text-sm sm:text-base relative z-10 line-clamp-4">
-                                {feedback.comment}
-                            </p>
-
-                            {/* Volunteer Info */}
-                            <div className="flex items-center gap-3 pt-4 border-t border-slate-50">
-                                {feedback.volunteerAvatar ? (
-                                    <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-slate-100">
-                                        <img
-                                            src={feedback.volunteerAvatar}
-                                            alt={feedback.volunteerName}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                        {feedback.volunteerName?.charAt(0) || '؟'}
+                            {/* Content container */}
+                            <div className={`relative z-10 ${feedback.imageUrl ? 'p-6 mt-auto' : ''}`}>
+                                {/* Quote decoration */}
+                                {!feedback.imageUrl && (
+                                    <div className="absolute top-0 right-0 text-5xl text-primary-100 font-serif leading-none select-none -translate-y-2 opacity-50">
+                                        "
                                     </div>
                                 )}
-                                <div className="min-w-0">
-                                    <h4 className="font-bold text-slate-800 text-sm truncate">{feedback.volunteerName}</h4>
-                                    <p className="text-xs text-slate-400 truncate">
-                                        {feedback.opportunityTitle}
-                                    </p>
+
+                                {/* Stars */}
+                                <div className="mb-4">
+                                    {renderStars(feedback.rating)}
+                                </div>
+
+                                {/* Comment */}
+                                <p className={`leading-relaxed mb-5 text-sm sm:text-base line-clamp-4 ${feedback.imageUrl ? 'text-white' : 'text-slate-600'
+                                    }`}>
+                                    "{feedback.comment}"
+                                </p>
+
+                                {/* Volunteer Info */}
+                                <div className={`flex items-center gap-3 pt-4 border-t ${feedback.imageUrl ? 'border-white/20' : 'border-slate-50'
+                                    }`}>
+                                    {feedback.volunteerAvatar ? (
+                                        <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-slate-100 ring-2 ring-white/10">
+                                            <img
+                                                src={feedback.volunteerAvatar}
+                                                alt={feedback.volunteerName}
+                                                className="w-full h-full object-cover"
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ring-2 ring-white/10">
+                                            {feedback.volunteerName?.charAt(0) || '؟'}
+                                        </div>
+                                    )}
+                                    <div className="min-w-0">
+                                        <h4 className={`font-bold text-sm truncate ${feedback.imageUrl ? 'text-white' : 'text-slate-800'
+                                            }`}>
+                                            {feedback.volunteerName}
+                                        </h4>
+                                        <p className={`text-xs truncate ${feedback.imageUrl ? 'text-slate-300' : 'text-slate-400'
+                                            }`}>
+                                            {feedback.opportunityTitle}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
