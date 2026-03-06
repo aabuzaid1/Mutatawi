@@ -86,7 +86,7 @@ const slideVariants = {
 };
 
 export default function RegisterForm() {
-    const [step, setStep] = useState<1 | 2>(1);
+    const [step, setStep] = useState<1 | 2 | 3>(1);
     const [direction, setDirection] = useState(1);
     const [selectedType, setSelectedType] = useState<'volunteer' | 'organization'>('volunteer');
     const [name, setName] = useState('');
@@ -97,6 +97,10 @@ export default function RegisterForm() {
     const [governorate, setGovernorate] = useState('');
     const [emailNotifications, setEmailNotifications] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
+    const [otpError, setOtpError] = useState('');
+    const [resendCountdown, setResendCountdown] = useState(0);
+    const [verifying, setVerifying] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -146,21 +150,140 @@ export default function RegisterForm() {
         setLoading(true);
 
         try {
+            // Send OTP to email first
+            const res = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast.error(data.error || 'حدث خطأ أثناء إرسال رمز التحقق');
+                return;
+            }
+
+            toast.success('تم إرسال رمز التحقق إلى بريدك الإلكتروني ✉️', { duration: 5000 });
+            setOtpCode(['', '', '', '', '', '']);
+            setOtpError('');
+            setDirection(1);
+            setStep(3);
+            startResendCountdown();
+        } catch (error: any) {
+            toast.error('حدث خطأ أثناء إرسال رمز التحقق. حاول مرة أخرى.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const startResendCountdown = () => {
+        setResendCountdown(60);
+        const interval = setInterval(() => {
+            setResendCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    const handleOtpChange = (index: number, value: string) => {
+        if (value.length > 1) {
+            // Handle paste
+            const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+            const newOtp = [...otpCode];
+            digits.forEach((d, i) => {
+                if (index + i < 6) newOtp[index + i] = d;
+            });
+            setOtpCode(newOtp);
+            const nextIndex = Math.min(index + digits.length, 5);
+            const nextInput = document.getElementById(`otp-${nextIndex}`);
+            nextInput?.focus();
+            return;
+        }
+        if (value && !/^\d$/.test(value)) return;
+        const newOtp = [...otpCode];
+        newOtp[index] = value;
+        setOtpCode(newOtp);
+        setOtpError('');
+        if (value && index < 5) {
+            const nextInput = document.getElementById(`otp-${index + 1}`);
+            nextInput?.focus();
+        }
+    };
+
+    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+        if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+            const prevInput = document.getElementById(`otp-${index - 1}`);
+            prevInput?.focus();
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        const code = otpCode.join('');
+        if (code.length !== 6) {
+            setOtpError('يرجى إدخال الرمز المكون من ٦ أرقام');
+            return;
+        }
+
+        setVerifying(true);
+        setOtpError('');
+
+        try {
+            // Verify OTP
+            const verifyRes = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (!verifyRes.ok || !verifyData.valid) {
+                setOtpError(verifyData.error || 'الرمز غير صحيح');
+                return;
+            }
+
+            // OTP verified — now create the account
             await signUp(email, password, name, selectedType, phone, governorate, selectedType === 'volunteer' ? emailNotifications : false);
             trackEvent('register_success', { role: selectedType });
-            toast.success('تم إرسال إيميل التحقق، يرجى تفعيل حسابك لتتمكن من الدخول ✉️', {
-                duration: 5000,
-            });
+            toast.success('تم إنشاء حسابك بنجاح! 🎉', { duration: 5000 });
             await signOut();
             router.push('/verify-email');
         } catch (error: any) {
             if (error.code === 'auth/email-already-in-use') {
-                toast.error('هذا البريد الإلكتروني مستخدم بالفعل');
+                setOtpError('هذا البريد الإلكتروني مستخدم بالفعل');
             } else if (error.code === 'auth/invalid-email') {
-                toast.error('البريد الإلكتروني غير موجود أو غير صحيح. يرجى إدخال بريد إلكتروني آخر.', { duration: 5000 });
+                setOtpError('البريد الإلكتروني غير صحيح');
             } else {
-                toast.error('حدث خطأ أثناء التسجيل. حاول مرة أخرى.');
+                setOtpError('حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.');
             }
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (resendCountdown > 0) return;
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || 'حدث خطأ أثناء إعادة الإرسال');
+                return;
+            }
+            toast.success('تم إعادة إرسال رمز التحقق ✉️');
+            setOtpCode(['', '', '', '', '', '']);
+            setOtpError('');
+            startResendCountdown();
+        } catch {
+            toast.error('حدث خطأ. حاول مرة أخرى.');
         } finally {
             setLoading(false);
         }
@@ -199,6 +322,7 @@ export default function RegisterForm() {
                 {[
                     { num: 1, label: 'نوع الحساب' },
                     { num: 2, label: 'بيانات التسجيل' },
+                    { num: 3, label: 'تحقق البريد' },
                 ].map((s, i) => (
                     <div key={s.num} className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
@@ -221,8 +345,8 @@ export default function RegisterForm() {
                                 {s.label}
                             </span>
                         </div>
-                        {i < 1 && (
-                            <div className={`w-12 sm:w-20 h-0.5 rounded-full transition-colors duration-500 ${step > 1 ? 'bg-primary-400' : 'bg-slate-200'
+                        {i < 2 && (
+                            <div className={`w-12 sm:w-20 h-0.5 rounded-full transition-colors duration-500 ${step > s.num ? 'bg-primary-400' : 'bg-slate-200'
                                 }`} />
                         )}
                     </div>
@@ -297,7 +421,7 @@ export default function RegisterForm() {
                                 </Link>
                             </p>
                         </motion.div>
-                    ) : (
+                    ) : step === 2 ? (
                         <motion.div
                             key="step2"
                             custom={direction}
@@ -420,7 +544,7 @@ export default function RegisterForm() {
                                     )}
 
                                     <Button type="submit" variant="primary" className="w-full" loading={loading}>
-                                        إنشاء الحساب
+                                        إرسال رمز التحقق
                                     </Button>
                                 </form>
 
@@ -448,6 +572,107 @@ export default function RegisterForm() {
                                         سجّل دخولك
                                     </Link>
                                 </p>
+                            </div>
+                        </motion.div>
+                    ) : (
+                        /* ==================== Step 3: OTP Verification ==================== */
+                        <motion.div
+                            key="step3"
+                            custom={direction}
+                            variants={slideVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        >
+                            <div className="bg-white rounded-3xl shadow-card p-6 sm:p-8 border border-slate-100">
+                                {/* Back Button */}
+                                <motion.button
+                                    onClick={() => { setDirection(-1); setStep(2); }}
+                                    className="flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors text-sm font-medium mb-6"
+                                    whileHover={{ x: 5 }}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    <IoArrowForwardOutline size={18} />
+                                    <span>تعديل البيانات</span>
+                                </motion.button>
+
+                                {/* Header */}
+                                <div className="text-center mb-8">
+                                    <motion.div
+                                        className="text-5xl mb-4"
+                                        animate={{ scale: [1, 1.1, 1] }}
+                                        transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                                    >
+                                        ✉️
+                                    </motion.div>
+                                    <h2 className="text-2xl font-black text-slate-900 mb-2">تحقق من بريدك الإلكتروني</h2>
+                                    <p className="text-slate-500 text-sm">
+                                        أرسلنا رمز تحقق مكون من ٦ أرقام إلى
+                                    </p>
+                                    <p className="text-primary-600 font-bold text-sm mt-1 direction-ltr">{email}</p>
+                                </div>
+
+                                {/* OTP Input */}
+                                <div className="flex justify-center gap-2 sm:gap-3 mb-4" dir="ltr">
+                                    {otpCode.map((digit, index) => (
+                                        <input
+                                            key={index}
+                                            id={`otp-${index}`}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={6}
+                                            value={digit}
+                                            onChange={(e) => handleOtpChange(index, e.target.value)}
+                                            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                                            className={`w-11 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-black rounded-xl border-2 transition-all outline-none
+                                                ${otpError
+                                                    ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-200'
+                                                    : 'border-slate-200 bg-white text-slate-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
+                                                }`}
+                                            autoFocus={index === 0}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Error */}
+                                {otpError && (
+                                    <motion.p
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="text-center text-sm text-red-600 font-medium mb-4"
+                                    >
+                                        {otpError}
+                                    </motion.p>
+                                )}
+
+                                {/* Verify Button */}
+                                <Button
+                                    variant="primary"
+                                    className="w-full mt-4"
+                                    loading={verifying}
+                                    onClick={handleVerifyOtp}
+                                >
+                                    تحقق وأنشئ الحساب
+                                </Button>
+
+                                {/* Resend */}
+                                <div className="text-center mt-6">
+                                    <p className="text-sm text-slate-400 mb-2">لم يصلك الرمز؟</p>
+                                    {resendCountdown > 0 ? (
+                                        <p className="text-sm text-slate-400">
+                                            إعادة الإرسال خلال <span className="font-bold text-primary-600">{resendCountdown}</span> ثانية
+                                        </p>
+                                    ) : (
+                                        <button
+                                            onClick={handleResendOtp}
+                                            disabled={loading}
+                                            className="text-sm text-primary-600 font-bold hover:text-primary-700 transition-colors disabled:opacity-50"
+                                        >
+                                            إعادة إرسال الرمز
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     )}
