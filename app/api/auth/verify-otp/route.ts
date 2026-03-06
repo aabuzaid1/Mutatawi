@@ -17,7 +17,7 @@ const MAX_ATTEMPTS = 5;
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { email, code } = body;
+        const { email, code, keepAlive } = body;
 
         if (!email || !code) {
             return NextResponse.json(
@@ -73,8 +73,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Success — delete the OTP doc
-        await adminDb.collection('otpCodes').doc(docId).delete();
+        // Success — either delete the OTP doc or keep it alive (for reset password)
+        if (keepAlive) {
+            await adminDb.collection('otpCodes').doc(docId).update({
+                verified: true,
+            });
+        } else {
+            await adminDb.collection('otpCodes').doc(docId).delete();
+        }
 
         console.log(`[OTP] ✅ Verified for ${normalizedEmail.replace(/(.{2}).*(@.*)/, '$1***$2')}`);
 

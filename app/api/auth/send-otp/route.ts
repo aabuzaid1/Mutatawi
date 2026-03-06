@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/app/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/app/lib/firebase-admin';
 import { sendOtpEmail } from '@/app/lib/email';
 
 export const runtime = 'nodejs';
@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { email } = body;
+        const { email, purpose } = body;
 
         if (!email || typeof email !== 'string') {
             return NextResponse.json(
@@ -53,6 +53,24 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // If purpose is reset_password, check if user exists
+        if (purpose === 'reset_password') {
+            try {
+                await adminAuth.getUserByEmail(normalizedEmail);
+            } catch (error: any) {
+                // User doesn't exist. Fake success to prevent enumeration.
+                if (error.code === 'auth/user-not-found') {
+                    console.log(`[OTP] Security: Faked success for non-existent email - ${normalizedEmail}`);
+                    // Return exactly the same success message
+                    return NextResponse.json({
+                        success: true,
+                        message: 'تم إرسال رمز التحقق',
+                    });
+                }
+                throw error;
+            }
+        }
+
         // Generate 6-digit OTP
         const code = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -60,9 +78,11 @@ export async function POST(request: NextRequest) {
         await adminDb.collection('otpCodes').doc(docId).set({
             email: normalizedEmail,
             code,
+            purpose: purpose || 'register',
             createdAt: new Date(),
             expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
             attempts: 0,
+            verified: false,
         });
 
         // Send email
