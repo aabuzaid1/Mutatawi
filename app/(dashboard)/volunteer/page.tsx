@@ -337,6 +337,7 @@ export default function VolunteerDashboard() {
                     opportunityTitle={feedbackModal.opportunityTitle}
                     volunteerId={user.uid}
                     volunteerName={profile?.displayName || 'متطوع'}
+                    volunteerAvatar={profile?.photoURL}
                 />
             )}
         </div>

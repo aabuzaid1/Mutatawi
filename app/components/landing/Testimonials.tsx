@@ -156,9 +156,20 @@ export default function Testimonials() {
 
                             {/* Volunteer Info */}
                             <div className="flex items-center gap-3 pt-4 border-t border-slate-50">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                    {feedback.volunteerName?.charAt(0) || '؟'}
-                                </div>
+                                {feedback.volunteerAvatar ? (
+                                    <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden bg-slate-100">
+                                        <img
+                                            src={feedback.volunteerAvatar}
+                                            alt={feedback.volunteerName}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                        {feedback.volunteerName?.charAt(0) || '؟'}
+                                    </div>
+                                )}
                                 <div className="min-w-0">
                                     <h4 className="font-bold text-slate-800 text-sm truncate">{feedback.volunteerName}</h4>
                                     <p className="text-xs text-slate-400 truncate">
