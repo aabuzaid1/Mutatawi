@@ -94,9 +94,6 @@ export async function signUp(
 
     await setDoc(doc(db, 'users', user.uid), userProfile);
 
-    // Send email verification
-    await sendEmailVerification(user);
-
     // إرسال إيميل ترحيبي آمن عبر السيرفر (fire-and-forget)
     triggerFirstLoginEmail(user).catch(() => { });
 
