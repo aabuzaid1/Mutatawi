@@ -16,43 +16,28 @@ export default function ForgotPasswordPage() {
 
     // Form States
     const [email, setEmail] = useState('');
-    const [code, setCode] = useState(['', '', '', '', '', '']);
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    const handleOtpChange = (index: number, value: string) => {
-        // Only allow digits
-        const digit = value.replace(/\D/g, '').slice(-1);
-        const newCode = [...code];
-        newCode[index] = digit;
-        setCode(newCode);
-
-        // Auto-focus next box
-        if (digit && index < 5) {
-            otpRefs.current[index + 1]?.focus();
-        }
+    const handleBoxChange = (idx: number, val: string) => {
+        const d = val.replace(/\D/g, '').slice(-1);
+        const next = [...otp];
+        next[idx] = d;
+        setOtp(next);
+        if (d && idx < 5) inputRefs.current[idx + 1]?.focus();
     };
-
-    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Backspace' && !code[index] && index > 0) {
-            otpRefs.current[index - 1]?.focus();
-        }
+    const handleBoxKey = (idx: number, e: React.KeyboardEvent) => {
+        if (e.key === 'Backspace' && !otp[idx] && idx > 0) inputRefs.current[idx - 1]?.focus();
     };
-
-    const handleOtpPaste = (e: React.ClipboardEvent) => {
+    const handleBoxPaste = (e: React.ClipboardEvent) => {
         e.preventDefault();
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-        if (pasted.length > 0) {
-            const newCode = [...code];
-            for (let i = 0; i < 6; i++) {
-                newCode[i] = pasted[i] || '';
-            }
-            setCode(newCode);
-            // Focus the next empty or last box
-            const focusIndex = Math.min(pasted.length, 5);
-            otpRefs.current[focusIndex]?.focus();
-        }
+        const p = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        const next = ['', '', '', '', '', ''];
+        for (let i = 0; i < p.length; i++) next[i] = p[i];
+        setOtp(next);
+        inputRefs.current[Math.min(p.length, 5)]?.focus();
     };
 
     // --- Step 1: Send OTP to Email ---
@@ -76,7 +61,7 @@ export default function ForgotPasswordPage() {
 
             toast.success('تم إرسال رمز التحقق إلى بريدك الإلكتروني!');
             setStep('otp');
-            setCode(['', '', '', '', '', '']); // Reset code input when moving to OTP step
+            setOtp(['', '', '', '', '', '']); // Reset code input when moving to OTP step
         } catch (error: any) {
             toast.error(error.message || 'حدث خطأ أثناء الإرسال');
         } finally {
@@ -87,8 +72,8 @@ export default function ForgotPasswordPage() {
     // --- Step 2: Verify OTP ---
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        const codeStr = code.join('');
-        if (codeStr.length < 6) {
+        const code = otp.join('');
+        if (code.length < 6) {
             toast.error('يرجى إدخال رمز التحقق المكون من 6 أرقام');
             return;
         }
@@ -98,7 +83,7 @@ export default function ForgotPasswordPage() {
             const res = await fetch('/api/auth/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code: code.join(''), keepAlive: true }),
+                body: JSON.stringify({ email, code, keepAlive: true }),
             });
 
             const data = await res.json();
@@ -230,20 +215,20 @@ export default function ForgotPasswordPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-3 text-center">رمز التحقق (OTP)</label>
-                                <div className="flex gap-2 sm:gap-3 justify-center" dir="ltr" onPaste={handleOtpPaste}>
-                                    {code.map((digit, i) => (
+                                <label className="block text-sm font-medium text-slate-700 mb-3 text-center">رمز التحقق</label>
+                                <div className="flex gap-2 sm:gap-3 justify-center" dir="ltr" onPaste={handleBoxPaste}>
+                                    {otp.map((d, i) => (
                                         <input
                                             key={i}
-                                            ref={(el) => { otpRefs.current[i] = el; }}
+                                            ref={el => { inputRefs.current[i] = el; }}
                                             type="text"
                                             inputMode="numeric"
                                             maxLength={1}
-                                            value={digit}
-                                            onChange={(e) => handleOtpChange(i, e.target.value)}
-                                            onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                            value={d}
+                                            onChange={e => handleBoxChange(i, e.target.value)}
+                                            onKeyDown={e => handleBoxKey(i, e)}
                                             disabled={loading}
-                                            className="w-11 h-13 sm:w-13 sm:h-14 border-2 border-slate-200 rounded-xl text-center text-xl sm:text-2xl font-bold text-slate-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all duration-200 disabled:opacity-50 bg-slate-50 focus:bg-white"
+                                            className="w-11 h-12 sm:w-12 sm:h-14 border-2 border-slate-200 rounded-xl text-center text-xl sm:text-2xl font-bold text-slate-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all disabled:opacity-50 bg-slate-50 focus:bg-white"
                                         />
                                     ))}
                                 </div>
