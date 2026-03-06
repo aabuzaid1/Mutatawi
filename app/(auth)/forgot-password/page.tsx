@@ -3,72 +3,112 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoMailOutline, IoLockClosedOutline, IoCheckmarkCircleOutline, IoArrowBackOutline } from 'react-icons/io5';
-import { resetPassword, resetPasswordViaServer } from '@/app/lib/auth';
+import { IoMailOutline, IoCheckmarkCircleOutline, IoArrowBackOutline, IoLockClosedOutline, IoShieldCheckmarkOutline } from 'react-icons/io5';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
 import toast from 'react-hot-toast';
 
-type Step = 'email' | 'sent';
+type Step = 'email' | 'otp' | 'new-password' | 'success';
 
 export default function ForgotPasswordPage() {
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<Step>('email');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Form States
+    const [email, setEmail] = useState('');
+    const [code, setCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    // --- Step 1: Send OTP to Email ---
+    const handleSendOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!email) {
             toast.error('يرجى إدخال البريد الإلكتروني');
             return;
         }
-        setLoading(true);
 
+        setLoading(true);
         try {
-            // الطريقة الأساسية: إرسال عبر السيرفر (Admin SDK + SMTP)
-            await resetPasswordViaServer(email);
-            console.log('✅ [ForgotPassword] Server-side email sent successfully');
-            setStep('sent');
-            toast.success('تم إرسال رابط إعادة تعيين كلمة المرور!');
-        } catch (serverError: any) {
-            console.warn('⚠️ [ForgotPassword] Server-side failed, trying client-side...', serverError);
-            // الطريقة البديلة: إرسال عبر Firebase Client SDK
-            try {
-                await resetPassword(email);
-                setStep('sent');
-                toast.success('تم إرسال رابط إعادة تعيين كلمة المرور!');
-            } catch (error: any) {
-                console.error('🔍 [ForgotPassword] Both methods failed:', error?.code, error?.message);
-                const code = error?.code || '';
-                if (code === 'auth/user-not-found' || code === 'auth/invalid-email' || code === 'auth/user-disabled') {
-                    console.warn('⚠️ [ForgotPassword] Email not registered — showing success (security)');
-                    setStep('sent');
-                    return;
-                } else if (code === 'auth/too-many-requests') {
-                    toast.error('تم إرسال عدة طلبات. يرجى المحاولة لاحقاً');
-                } else if (code === 'auth/network-request-failed') {
-                    toast.error('خطأ في الاتصال. تحقق من اتصالك بالإنترنت');
-                } else {
-                    toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
-                }
-            }
+            const res = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, purpose: 'reset_password' }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'حدث خطأ أثناء الإرسال');
+
+            toast.success('تم إرسال رمز التحقق إلى بريدك الإلكتروني!');
+            setStep('otp');
+            setCode(''); // Reset code input when moving to OTP step
+        } catch (error: any) {
+            toast.error(error.message || 'حدث خطأ أثناء الإرسال');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleResend = async () => {
+    // --- Step 2: Verify OTP ---
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (code.length < 6) {
+            toast.error('يرجى إدخال رمز التحقق المكون من 6 أرقام');
+            return;
+        }
+
         setLoading(true);
         try {
-            await resetPasswordViaServer(email);
-            toast.success('تم إعادة إرسال رابط إعادة التعيين!');
-        } catch {
-            try {
-                await resetPassword(email);
-                toast.success('تم إعادة إرسال رابط إعادة التعيين!');
-            } catch {
-                toast.error('حدث خطأ. يرجى المحاولة مرة أخرى');
+            const res = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, keepAlive: true }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.valid) {
+                throw new Error(data.error || 'رمز التحقق غير صحيح');
             }
+
+            // Move to the next step
+            setStep('new-password');
+        } catch (error: any) {
+            toast.error(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Step 3: Set New Password ---
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Basic validation
+        if (newPassword.length < 6) {
+            toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error('كلمتا المرور غير متطابقتين');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/reset-password-confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, newPassword }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'حدث خطأ أثناء إعادة التعيين');
+            }
+
+            setStep('success');
+        } catch (error: any) {
+            toast.error(error.message);
         } finally {
             setLoading(false);
         }
@@ -86,18 +126,22 @@ export default function ForgotPasswordPage() {
                     <img src="/logo.png" alt="متطوع" className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg" />
                 </Link>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-1.5 sm:mb-2">
-                    {step === 'email' ? 'نسيت كلمة المرور؟' : 'تحقق من بريدك!'}
+                    {step === 'email' ? 'نسيت كلمة المرور؟' :
+                        step === 'otp' ? 'تحقق من بريدك!' :
+                            step === 'new-password' ? 'كلمة مرور جديدة' : 'تم بنجاح!'}
                 </h1>
                 <p className="text-sm sm:text-base text-slate-500">
-                    {step === 'email'
-                        ? 'أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور'
-                        : 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني'
+                    {step === 'email' ? 'أدخل بريدك الإلكتروني وسنرسل لك رمزاً لتغيير كلمة المرور' :
+                        step === 'otp' ? 'أدخل رمز التحقق (OTP) المكون من 6 أرقام المرسل إلى بريدك' :
+                            step === 'new-password' ? 'أدخل كلمة مرور قوية جديدة لحسابك' : 'تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول'
                     }
                 </p>
             </div>
 
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-card p-5 sm:p-8 border border-slate-100">
                 <AnimatePresence mode="wait">
+
+                    {/* STEP 1: Email */}
                     {step === 'email' && (
                         <motion.form
                             key="email-step"
@@ -105,7 +149,7 @@ export default function ForgotPasswordPage() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
                             transition={{ duration: 0.3 }}
-                            onSubmit={handleSubmit}
+                            onSubmit={handleSendOtp}
                             className="space-y-5"
                         >
                             <div className="w-20 h-20 mx-auto rounded-full bg-primary-50 flex items-center justify-center mb-2">
@@ -120,24 +164,120 @@ export default function ForgotPasswordPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 icon={<IoMailOutline size={18} />}
                                 required
+                                disabled={loading}
                             />
 
                             <Button type="submit" variant="primary" className="w-full" loading={loading}>
-                                إرسال رابط إعادة التعيين
+                                إرسال رمز التحقق
                             </Button>
                         </motion.form>
                     )}
 
-                    {step === 'sent' && (
+                    {/* STEP 2: OTP Verification */}
+                    {step === 'otp' && (
+                        <motion.form
+                            key="otp-step"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                            onSubmit={handleVerifyOtp}
+                            className="space-y-5"
+                        >
+                            <div className="w-20 h-20 mx-auto rounded-full bg-primary-50 flex items-center justify-center mb-2">
+                                <IoShieldCheckmarkOutline className="text-primary-600" size={36} />
+                            </div>
+
+                            <div className="bg-slate-50 rounded-xl p-3 text-center mb-4">
+                                <p className="text-sm text-slate-500 mb-1">تم الإرسال إلى</p>
+                                <p className="font-bold text-slate-800" dir="ltr">{email}</p>
+                            </div>
+
+                            <Input
+                                label="رمز التحقق (OTP)"
+                                type="text"
+                                placeholder="123456"
+                                value={code}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                    setCode(val);
+                                }}
+                                required
+                                disabled={loading}
+                                className="text-center text-lg tracking-widest font-bold"
+                            />
+
+                            <Button type="submit" variant="primary" className="w-full" loading={loading}>
+                                التحقق والمتابعة
+                            </Button>
+
+                            <div className="pt-2 text-center">
+                                <p className="text-sm text-slate-400 mb-2">لم يصلك الرمز؟</p>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSendOtp()}
+                                    disabled={loading}
+                                    className="text-sm font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50 transition-colors"
+                                >
+                                    إعادة إرسال الرمز
+                                </button>
+                            </div>
+                        </motion.form>
+                    )}
+
+                    {/* STEP 3: New Password */}
+                    {step === 'new-password' && (
+                        <motion.form
+                            key="new-password-step"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                            onSubmit={handleResetPassword}
+                            className="space-y-5"
+                        >
+                            <div className="w-20 h-20 mx-auto rounded-full bg-primary-50 flex items-center justify-center mb-2">
+                                <IoLockClosedOutline className="text-primary-600" size={36} />
+                            </div>
+
+                            <Input
+                                label="كلمة المرور الجديدة"
+                                type="password"
+                                placeholder="••••••••"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                icon={<IoLockClosedOutline size={18} />}
+                                required
+                                disabled={loading}
+                            />
+
+                            <Input
+                                label="تأكيد كلمة المرور الجديدة"
+                                type="password"
+                                placeholder="••••••••"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                icon={<IoLockClosedOutline size={18} />}
+                                required
+                                disabled={loading}
+                            />
+
+                            <Button type="submit" variant="primary" className="w-full" loading={loading}>
+                                حفظ كلمة المرور الجديدة
+                            </Button>
+                        </motion.form>
+                    )}
+
+                    {/* STEP 4: Success Message */}
+                    {step === 'success' && (
                         <motion.div
-                            key="sent-step"
+                            key="success-step"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.4 }}
                             className="text-center space-y-5"
                         >
-                            {/* Success Icon */}
                             <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
@@ -147,54 +287,29 @@ export default function ForgotPasswordPage() {
                                 <IoCheckmarkCircleOutline className="text-success-500" size={48} />
                             </motion.div>
 
-                            {/* Email display */}
-                            <div className="bg-slate-50 rounded-xl p-4">
-                                <p className="text-sm text-slate-500 mb-1">تم الإرسال إلى</p>
-                                <p className="font-bold text-slate-800" dir="ltr">{email}</p>
-                            </div>
-
-                            {/* Instructions */}
-                            <div className="space-y-3 text-sm text-slate-600">
-                                <div className="flex items-start gap-3 text-right">
-                                    <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">١</span>
-                                    <p>افتح بريدك الإلكتروني وابحث عن رسالة إعادة تعيين كلمة المرور</p>
-                                </div>
-                                <div className="flex items-start gap-3 text-right">
-                                    <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">٢</span>
-                                    <p>اضغط على الرابط في الرسالة وسيتم توجيهك للموقع</p>
-                                </div>
-                                <div className="flex items-start gap-3 text-right">
-                                    <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">٣</span>
-                                    <p>أدخل كلمة المرور الجديدة مباشرة في الموقع</p>
-                                </div>
-                            </div>
-
-                            {/* Resend */}
-                            <div className="pt-2">
-                                <p className="text-sm text-slate-400 mb-3">لم تصلك الرسالة؟</p>
-                                <Button
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={handleResend}
-                                    loading={loading}
-                                >
-                                    إعادة إرسال الرابط
-                                </Button>
-                            </div>
+                            <Button
+                                variant="primary"
+                                className="w-full mt-4"
+                                onClick={() => window.location.href = '/login'}
+                            >
+                                الانتقال لتسجيل الدخول
+                            </Button>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* Back to login */}
-                <div className="mt-6 pt-4 border-t border-slate-100">
-                    <Link
-                        href="/login"
-                        className="flex items-center justify-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-                    >
-                        <IoArrowBackOutline size={16} />
-                        العودة لتسجيل الدخول
-                    </Link>
-                </div>
+                {/* Back Link */}
+                {step !== 'success' && (
+                    <div className="mt-6 pt-4 border-t border-slate-100">
+                        <Link
+                            href="/login"
+                            className="flex items-center justify-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                        >
+                            <IoArrowBackOutline size={16} />
+                            العودة لتسجيل الدخول
+                        </Link>
+                    </div>
+                )}
             </div>
         </motion.div>
     );
