@@ -11,6 +11,8 @@ import {
     IoSaveOutline,
     IoLockClosedOutline,
     IoNotificationsOutline,
+    IoSwapHorizontalOutline,
+    IoWarningOutline,
 } from 'react-icons/io5';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
@@ -18,7 +20,7 @@ import Badge from '@/app/components/ui/Badge';
 import { useAuth } from '@/app/hooks/useAuth';
 import { updateUserProfile } from '@/app/lib/firestore';
 import { getApplicationsByVolunteer } from '@/app/lib/firestore';
-import { changePassword } from '@/app/lib/auth';
+import { changePassword, changeEmail } from '@/app/lib/auth';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -44,6 +46,13 @@ export default function ProfilePage() {
         confirmPassword: '',
     });
     const [changingPassword, setChangingPassword] = useState(false);
+
+    // Email change state
+    const [emailChangeData, setEmailChangeData] = useState({
+        newEmail: '',
+        password: '',
+    });
+    const [changingEmail, setChangingEmail] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -129,6 +138,38 @@ export default function ProfilePage() {
 
     // Check if user signed in with Google (no password to change)
     const isGoogleUser = user?.providerData?.some(p => p.providerId === 'google.com');
+
+    const handleChangeEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!emailChangeData.newEmail || !emailChangeData.password) {
+            toast.error('يرجى تعبئة جميع الحقول');
+            return;
+        }
+        setChangingEmail(true);
+        try {
+            await changeEmail(emailChangeData.password, emailChangeData.newEmail);
+            toast.success('تم تغيير البريد الإلكتروني بنجاح! تم إرسال رسالة تحقق للبريد الجديد ✉️', { duration: 6000 });
+            setFormData({ ...formData, email: emailChangeData.newEmail });
+            if (profile) {
+                setProfile({ ...profile, email: emailChangeData.newEmail });
+            }
+            setEmailChangeData({ newEmail: '', password: '' });
+        } catch (error: any) {
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                toast.error('كلمة المرور غير صحيحة');
+            } else if (error.code === 'auth/invalid-email') {
+                toast.error('البريد الإلكتروني الجديد غير صحيح. يرجى إدخال بريد إلكتروني صحيح.', { duration: 5000 });
+            } else if (error.code === 'auth/email-already-in-use') {
+                toast.error('هذا البريد الإلكتروني مستخدم بالفعل من حساب آخر');
+            } else if (error.code === 'auth/requires-recent-login') {
+                toast.error('يرجى تسجيل الخروج وإعادة الدخول ثم المحاولة مرة أخرى');
+            } else {
+                toast.error('حدث خطأ أثناء تغيير البريد الإلكتروني');
+            }
+        } finally {
+            setChangingEmail(false);
+        }
+    };
 
     const handleToggleNotifications = async () => {
         if (!user) return;
@@ -269,6 +310,62 @@ export default function ProfilePage() {
                 </div>
             </motion.div>
 
+            {/* Change Email Section */}
+            {!isGoogleUser && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 mt-6"
+                >
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <IoSwapHorizontalOutline size={20} className="text-primary-500" />
+                        تغيير البريد الإلكتروني
+                    </h3>
+
+                    {/* Warning Banner */}
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 mb-5">
+                        <IoWarningOutline size={22} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-bold text-amber-800">هل بريدك الإلكتروني صحيح؟</p>
+                            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                                إذا كان بريدك الإلكتروني غير موجود أو غير صحيح، لن تتمكن من استلام الإشعارات والتنبيهات. يرجى تحديثه ببريد إلكتروني فعّال.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleChangeEmail} className="space-y-4">
+                        <Input
+                            label="البريد الإلكتروني الجديد"
+                            type="email"
+                            placeholder="example@email.com"
+                            value={emailChangeData.newEmail}
+                            onChange={(e) => setEmailChangeData({ ...emailChangeData, newEmail: e.target.value })}
+                            icon={<IoMailOutline size={18} />}
+                            required
+                        />
+                        <Input
+                            label="كلمة المرور الحالية (للتحقق)"
+                            type="password"
+                            placeholder="••••••••"
+                            value={emailChangeData.password}
+                            onChange={(e) => setEmailChangeData({ ...emailChangeData, password: e.target.value })}
+                            icon={<IoLockClosedOutline size={18} />}
+                            required
+                        />
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            className="w-full"
+                            loading={changingEmail}
+                            icon={<IoSwapHorizontalOutline size={16} />}
+                        >
+                            تغيير البريد الإلكتروني
+                        </Button>
+                    </form>
+                </motion.div>
+            )}
+
             {/* Change Password Section */}
             {!isGoogleUser && (
                 <motion.div
@@ -345,8 +442,8 @@ export default function ProfilePage() {
                         onClick={handleToggleNotifications}
                         disabled={savingNotif}
                         className={`relative w-12 h-7 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-300 ${emailNotifications
-                                ? 'bg-primary-500'
-                                : 'bg-slate-300'
+                            ? 'bg-primary-500'
+                            : 'bg-slate-300'
                             } ${savingNotif ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                         aria-label="تفعيل/إيقاف إشعارات الفرص التطوعية"
                     >

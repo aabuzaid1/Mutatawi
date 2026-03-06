@@ -156,6 +156,8 @@ export default function RegisterForm() {
         } catch (error: any) {
             if (error.code === 'auth/email-already-in-use') {
                 toast.error('هذا البريد الإلكتروني مستخدم بالفعل');
+            } else if (error.code === 'auth/invalid-email') {
+                toast.error('البريد الإلكتروني غير موجود أو غير صحيح. يرجى إدخال بريد إلكتروني آخر.', { duration: 5000 });
             } else {
                 toast.error('حدث خطأ أثناء التسجيل. حاول مرة أخرى.');
             }
