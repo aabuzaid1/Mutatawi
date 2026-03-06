@@ -42,7 +42,9 @@ export default function LoginForm() {
             }
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
-                toast.error('هذا الحساب غير موجود');
+                toast.error('هذا الحساب غير موجود. يرجى التسجيل أولاً أو استخدام بريد إلكتروني آخر.', { duration: 5000 });
+            } else if (error.code === 'auth/invalid-email') {
+                toast.error('البريد الإلكتروني غير موجود أو غير صحيح. يرجى إدخال بريد إلكتروني آخر.', { duration: 5000 });
             } else if (error.code === 'auth/wrong-password') {
                 toast.error('كلمة المرور غير صحيحة');
             } else if (error.code === 'auth/invalid-credential') {
