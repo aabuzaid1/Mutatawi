@@ -1,15 +1,7 @@
-import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 
-// ==========================================
-// 🔴 إعدادات مزود خدمة الإيميل
-// اجعل هذه القيمة true إذا أردت استخدام Resend لاحقاً
-// اجعلها false للعودة إلى استخدام Gmail
-// ==========================================
-const USE_RESEND = false;
-
-// --- 1. إعدادات Gmail (Nodemailer) ---
 let transporter: nodemailer.Transporter | null = null;
+
 function getTransporter() {
   if (!transporter) {
     transporter = nodemailer.createTransport({
@@ -22,39 +14,10 @@ function getTransporter() {
   }
   return transporter;
 }
-const GMAIL_FROM = `متطوع <${process.env.SMTP_EMAIL}>`;
 
-// --- 2. إعدادات Resend ---
-const resend = new Resend(process.env.RESEND_API_KEY);
-const RESEND_FROM = 'متطوع <no-reply@mutatawi.com>';
-
-const SITE_URL = 'https://mutatawi.com'; // تم التحديث للدومين الجديد بدل Vercel app
+const FROM_EMAIL = `متطوع <${process.env.SMTP_EMAIL}>`;
+const SITE_URL = 'https://mutatawi.vercel.app';
 const LOGO_URL = `${SITE_URL}/logo.png`;
-
-// --- الدالة الموحدة للإرسال ---
-async function executeEmailSend(payload: { to: string; subject: string; html: string; text?: string }) {
-  if (USE_RESEND) {
-    const { error: resendError } = await resend.emails.send({
-      from: RESEND_FROM,
-      to: payload.to,
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text,
-    });
-    if (resendError) {
-      console.error('[Resend Error]:', resendError);
-      throw new Error(resendError.message);
-    }
-  } else {
-    await getTransporter().sendMail({
-      from: GMAIL_FROM,
-      to: payload.to,
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text,
-    });
-  }
-}
 
 /* ==================== Shared Template Wrapper ==================== */
 
@@ -175,7 +138,8 @@ export async function sendWelcomeEmail(
     ${ctaButton('ابدأ الآن', SITE_URL + dashboardUrl, '#6366f1')}
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: email,
     subject: `مرحباً بك في متطوع، ${name}! 🎉`,
     html: emailLayout({
@@ -207,7 +171,8 @@ export async function sendApplicationConfirmation(
     ${ctaButton('متابعة طلباتي', SITE_URL + '/volunteer', '#10b981')}
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تم تقديم طلبك بنجاح — ${opportunityTitle} ✅`,
     html: emailLayout({
@@ -251,7 +216,8 @@ export async function sendNewApplicationNotification(
     ${ctaButton('مراجعة الطلبات', SITE_URL + '/organization', '#f59e0b')}
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: orgEmail,
     subject: `طلب تطوع جديد — ${volunteerName} تقدم لـ "${opportunityTitle}" 📩`,
     html: emailLayout({
@@ -283,7 +249,8 @@ export async function sendApplicationAccepted(
     ${ctaButton('عرض طلباتي', SITE_URL + '/volunteer', '#10b981')}
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `🎉 مبروك! تم قبولك في "${opportunityTitle}"`,
     html: emailLayout({
@@ -315,7 +282,8 @@ export async function sendApplicationRejected(
     ${ctaButton('استكشاف فرص أخرى', SITE_URL + '/opportunities', '#6366f1')}
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: volunteerEmail,
     subject: `تحديث على طلبك — ${opportunityTitle}`,
     html: emailLayout({
@@ -355,7 +323,8 @@ export async function sendNewOpportunityNotification(
     </p>
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: toEmail,
     subject: `🌟 فرصة تطوعية جديدة — ${opportunityTitle}`,
     html: emailLayout({
@@ -390,7 +359,8 @@ export async function sendOtpEmail(
     </p>
   `;
 
-  await executeEmailSend({
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
     to: toEmail,
     subject: `🔐 رمز التحقق الخاص بك — ${code}`,
     text: `مرحباً،\nلإتمام تسجيلك في منصة متطوع، يرجى إدخال رمز التحقق التالي:\n\n${code}\n\nهذا الرمز صالح لمدة 5 دقائق فقط.\nإذا لم تطلب هذا الرمز، يمكنك تجاهل هذه الرسالة.`,

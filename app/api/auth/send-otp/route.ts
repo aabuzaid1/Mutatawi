@@ -59,14 +59,13 @@ export async function POST(request: NextRequest) {
                 await adminAuth.getUserByEmail(normalizedEmail);
             } catch (error: any) {
                 if (error.code === 'auth/user-not-found') {
-                    // Temporarily return a real error so testing works without confusion.
-                    // Once testing is done, you might want to return a generic message for security.
-                    console.log(`[OTP] User not found for reset_password: ${normalizedEmail}`);
-                    return NextResponse.json(
-                        { error: 'هذا البريد الإلكتروني غير مسجل لدينا' },
-                        { status: 404 }
-                    );
+                    console.log(`[OTP] Security: Faked success for non-existent email`);
+                    return NextResponse.json({
+                        success: true,
+                        message: 'تم إرسال رمز التحقق',
+                    });
                 }
+                // Any other error — log it but continue sending OTP
                 console.warn(`[OTP] getUserByEmail warning: ${error.code || error.message} — continuing anyway`);
             }
         }
