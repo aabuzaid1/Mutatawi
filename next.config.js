@@ -28,6 +28,15 @@ const nextConfig = {
         FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
         FIREBASE_SERVICE_ACCOUNT_KEY: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
     },
+    // Proxy Firebase Auth
+    async rewrites() {
+        return [
+            {
+                source: '/__/auth/:path*',
+                destination: 'https://mutatawi-2b96f.firebaseapp.com/__/auth/:path*',
+            },
+        ];
+    },
     // Security Headers
     async headers() {
         return [
