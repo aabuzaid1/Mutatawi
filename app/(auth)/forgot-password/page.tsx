@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoMailOutline, IoCheckmarkCircleOutline, IoArrowBackOutline, IoLockClosedOutline, IoShieldCheckmarkOutline } from 'react-icons/io5';
@@ -19,6 +19,7 @@ export default function ForgotPasswordPage() {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [lastSubmittedOtp, setLastSubmittedOtp] = useState('');
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const handleBoxChange = (idx: number, val: string) => {
@@ -69,9 +70,21 @@ export default function ForgotPasswordPage() {
         }
     };
 
+    // Auto-submit OTP
+    useEffect(() => {
+        const currentOtp = otp.join('');
+        if (step === 'otp' && currentOtp.length === 6 && !loading && currentOtp !== lastSubmittedOtp) {
+            setLastSubmittedOtp(currentOtp);
+            const timeout = setTimeout(() => {
+                handleVerifyOtp();
+            }, 100);
+            return () => clearTimeout(timeout);
+        }
+    }, [otp, step, loading, lastSubmittedOtp]);
+
     // --- Step 2: Verify OTP ---
-    const handleVerifyOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleVerifyOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         const code = otp.join('');
         if (code.length < 6) {
             toast.error('يرجى إدخال رمز التحقق المكون من 6 أرقام');

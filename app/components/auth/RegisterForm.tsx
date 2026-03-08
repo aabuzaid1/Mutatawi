@@ -101,6 +101,7 @@ export default function RegisterForm() {
     const [otpError, setOtpError] = useState('');
     const [resendCountdown, setResendCountdown] = useState(0);
     const [verifying, setVerifying] = useState(false);
+    const [lastSubmittedOtp, setLastSubmittedOtp] = useState('');
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -220,6 +221,18 @@ export default function RegisterForm() {
             prevInput?.focus();
         }
     };
+
+    // Auto-submit OTP
+    useEffect(() => {
+        const currentOtp = otpCode.join('');
+        if (step === 3 && currentOtp.length === 6 && !verifying && currentOtp !== lastSubmittedOtp) {
+            setLastSubmittedOtp(currentOtp);
+            const timeout = setTimeout(() => {
+                handleVerifyOtp();
+            }, 100);
+            return () => clearTimeout(timeout);
+        }
+    }, [otpCode, step, verifying, lastSubmittedOtp]);
 
     const handleVerifyOtp = async () => {
         const code = otpCode.join('');
