@@ -15,7 +15,7 @@ import {
     increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Opportunity, Application, UserProfile, Feedback } from '../types';
+import { Opportunity, Application, UserProfile, Feedback, Course, CourseProgress } from '../types';
 
 // ===================== OPPORTUNITIES =====================
 
@@ -427,4 +427,118 @@ export async function getUserProfileById(uid: string): Promise<UserProfile | nul
         return userDoc.data() as UserProfile;
     }
     return null;
+}
+
+// ===================== COURSES =====================
+
+export async function getCourses(category?: string) {
+    try {
+        const constraints: any[] = [];
+        if (category) {
+            constraints.push(where('category', '==', category));
+        }
+        const q = query(collection(db, 'courses'), ...constraints, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        })) as Course[];
+    } catch (error: any) {
+        console.warn('getCourses: index missing, fetching without orderBy', error.message);
+        const constraints: any[] = [];
+        if (category) {
+            constraints.push(where('category', '==', category));
+        }
+        const q = query(collection(db, 'courses'), ...constraints);
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        })) as Course[];
+    }
+}
+
+export async function getCourse(id: string): Promise<Course | null> {
+    const docSnap = await getDoc(doc(db, 'courses', id));
+    if (!docSnap.exists()) return null;
+    const data = docSnap.data();
+    return {
+        id: docSnap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+    } as Course;
+}
+
+export async function getCourseProgress(courseId: string, volunteerId: string): Promise<CourseProgress | null> {
+    const q = query(
+        collection(db, 'courseProgress'),
+        where('courseId', '==', courseId),
+        where('volunteerId', '==', volunteerId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const docData = snap.docs[0];
+    return {
+        id: docData.id,
+        ...docData.data(),
+        completedAt: docData.data().completedAt?.toDate?.() || null,
+    } as CourseProgress;
+}
+
+export async function markLessonComplete(
+    courseId: string,
+    volunteerId: string,
+    lessonIndex: number,
+    totalLessons: number
+) {
+    // Find existing progress
+    const q = query(
+        collection(db, 'courseProgress'),
+        where('courseId', '==', courseId),
+        where('volunteerId', '==', volunteerId)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+        // Create new progress
+        const completedLessons = [lessonIndex];
+        await addDoc(collection(db, 'courseProgress'), {
+            courseId,
+            volunteerId,
+            completedLessons,
+            completedAt: completedLessons.length === totalLessons ? serverTimestamp() : null,
+        });
+    } else {
+        const progressDoc = snap.docs[0];
+        const data = progressDoc.data();
+        let completedLessons: number[] = data.completedLessons || [];
+
+        if (completedLessons.includes(lessonIndex)) {
+            // Toggle off
+            completedLessons = completedLessons.filter(i => i !== lessonIndex);
+        } else {
+            // Toggle on
+            completedLessons = [...completedLessons, lessonIndex];
+        }
+
+        await updateDoc(doc(db, 'courseProgress', progressDoc.id), {
+            completedLessons,
+            completedAt: completedLessons.length === totalLessons ? serverTimestamp() : null,
+        });
+    }
+}
+
+export async function getVolunteerCourseProgress(volunteerId: string): Promise<CourseProgress[]> {
+    const q = query(
+        collection(db, 'courseProgress'),
+        where('volunteerId', '==', volunteerId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        completedAt: d.data().completedAt?.toDate?.() || null,
+    })) as CourseProgress[];
 }

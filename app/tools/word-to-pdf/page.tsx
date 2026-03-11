@@ -1,0 +1,175 @@
+'use client';
+
+import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { IoCloudUploadOutline, IoDocumentOutline, IoDownloadOutline, IoArrowBackOutline } from 'react-icons/io5';
+import Link from 'next/link';
+import Navbar from '@/app/components/layout/Navbar';
+import Footer from '@/app/components/layout/Footer';
+
+export default function WordToPdfPage() {
+    const [file, setFile] = useState<File | null>(null);
+    const [converting, setConverting] = useState(false);
+    const [dragOver, setDragOver] = useState(false);
+
+    const handleFile = (f: File) => {
+        if (f.name.endsWith('.docx') || f.name.endsWith('.doc')) {
+            setFile(f);
+        } else {
+            alert('يرجى اختيار ملف Word (.docx)');
+        }
+    };
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    }, []);
+
+    const handleConvert = async () => {
+        if (!file) return;
+        setConverting(true);
+        try {
+            const docxPreview = await import('docx-preview');
+            const { jsPDF } = await import('jspdf');
+            const html2canvas = (await import('html2canvas')).default;
+
+            const arrayBuffer = await file.arrayBuffer();
+
+            // Create isolated container
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-9999;background:white;';
+            document.body.appendChild(wrapper);
+
+            // Render docx with page breaks
+            await docxPreview.renderAsync(arrayBuffer, wrapper, undefined, {
+                className: 'docx-clean',
+                inWrapper: true,
+                ignoreWidth: false,
+                ignoreHeight: false,
+                ignoreFonts: false,
+                breakPages: true,
+                ignoreLastRenderedPageBreak: false,
+                useBase64URL: true,
+            });
+
+            // Wait for full render (images, fonts)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Find all rendered page sections
+            const pageSections = wrapper.querySelectorAll('section.docx');
+
+            let pdf: InstanceType<typeof jsPDF> | null = null;
+
+            if (pageSections.length > 0) {
+                // Capture each page section separately — no cutting!
+                for (let i = 0; i < pageSections.length; i++) {
+                    const section = pageSections[i] as HTMLElement;
+
+                    const canvas = await html2canvas(section, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        foreignObjectRendering: false,
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                    const imgWidth = 210; // A4 mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                    if (i === 0) {
+                        pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight]);
+                        pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                    } else {
+                        pdf!.addPage([imgWidth, imgHeight]);
+                        pdf!.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                    }
+                }
+            } else {
+                // Fallback: capture the whole wrapper as one page
+                const canvas = await html2canvas(wrapper, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                const imgWidth = 210;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight]);
+                pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+            }
+
+            if (pdf) {
+                pdf.save(file.name.replace(/\.(docx|doc)$/i, '') + '.pdf');
+            }
+
+            // Cleanup
+            document.body.removeChild(wrapper);
+        } catch (error) {
+            console.error(error);
+            alert('حدث خطأ أثناء التحويل');
+        } finally {
+            setConverting(false);
+        }
+    };
+
+    return (
+        <>
+            <Navbar />
+            <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white pt-24 pb-16">
+                <div className="max-w-2xl mx-auto px-4 sm:px-6">
+                    <Link href="/tools" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 font-medium mb-6 transition-colors">
+                        <IoArrowBackOutline size={16} /> العودة للأدوات
+                    </Link>
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-100 rounded-2xl mb-4">
+                            <IoDocumentOutline size={32} className="text-violet-600" />
+                        </div>
+                        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2">Word ← PDF</h1>
+                        <p className="text-slate-500">حوّل مستندات Word إلى PDF</p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={handleDrop}
+                        className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${dragOver ? 'border-violet-500 bg-violet-50' : file ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white hover:border-violet-300'
+                            }`}
+                        onClick={() => document.getElementById('file-input')?.click()}
+                    >
+                        <input id="file-input" type="file" accept=".docx,.doc" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                        {file ? (
+                            <div>
+                                <IoDocumentOutline size={40} className="text-green-500 mx-auto mb-3" />
+                                <p className="font-bold text-slate-800">{file.name}</p>
+                                <p className="text-sm text-slate-400 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <IoCloudUploadOutline size={48} className="text-slate-300 mx-auto mb-3" />
+                                <p className="font-bold text-slate-600 mb-1">اسحب ملف Word هنا</p>
+                                <p className="text-sm text-slate-400">أو اضغط لاختيار ملف (.docx)</p>
+                            </div>
+                        )}
+                    </motion.div>
+
+                    {file && (
+                        <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                            onClick={handleConvert} disabled={converting}
+                            className="w-full mt-6 flex items-center justify-center gap-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 rounded-2xl text-lg font-bold hover:shadow-xl transition-all disabled:opacity-50">
+                            {converting ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                    جاري التحويل...
+                                </span>
+                            ) : <><IoDownloadOutline size={22} /> تحويل وتحميل PDF</>}
+                        </motion.button>
+                    )}
+                </div>
+            </main>
+            <Footer />
+        </>
+    );
+}
