@@ -99,3 +99,34 @@ export interface OpportunityFilters {
     status?: 'open' | 'closed' | 'completed';
     search?: string;
 }
+
+// Course types
+export interface Lesson {
+    title: string;
+    youtubeVideoId: string;
+    duration: string; // e.g. "12:34"
+    order: number;
+}
+
+export interface Course {
+    id: string;
+    title: string;
+    description: string;
+    category: CourseCategory;
+    thumbnail: string;
+    totalLessons: number;
+    totalDuration: string;
+    level: 'مبتدئ' | 'متوسط' | 'متقدم';
+    lessons: Lesson[];
+    createdAt: Date;
+}
+
+export type CourseCategory = 'قيادة' | 'تقنية' | 'تواصل' | 'إسعافات' | 'تطوير ذات' | 'أخرى';
+
+export interface CourseProgress {
+    id: string;
+    courseId: string;
+    volunteerId: string;
+    completedLessons: number[]; // indices of completed lessons
+    completedAt: Date | null;
+}

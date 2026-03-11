@@ -32,7 +32,8 @@ export default function Navbar() {
     const navLinks = [
         { href: '/', label: 'الرئيسية' },
         { href: '/opportunities', label: 'فرص التطوع' },
-        { href: '/#how-it-works', label: 'كيف يعمل' },
+        { href: '/courses', label: 'الكورسات' },
+        { href: '/tools', label: 'الأدوات' },
     ];
 
     return (
