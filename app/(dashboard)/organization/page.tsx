@@ -9,7 +9,9 @@ import {
     IoTrendingUpOutline,
     IoAddOutline,
     IoPencilOutline,
+    IoStarOutline,
 } from 'react-icons/io5';
+import { auth } from '@/app/lib/firebase';
 import ImpactCard from '@/app/components/dashboard/ImpactCard';
 import Badge from '@/app/components/ui/Badge';
 import Button from '@/app/components/ui/Button';
@@ -25,6 +27,7 @@ export default function OrganizationDashboard() {
     const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
+    const [sendingEvaluationId, setSendingEvaluationId] = useState<string | null>(null);
 
     useEffect(() => {
         async function loadData() {
@@ -65,6 +68,48 @@ export default function OrganizationDashboard() {
         } catch (error: any) {
             console.error('Delete error:', error);
             toast.error('فشل حذف الفرصة');
+        }
+    };
+
+    const isOpportunityPast = (opp: Opportunity) => {
+        if (!opp.date) return false;
+        const endTime = new Date(`${opp.date}T${opp.endTime || opp.startTime || '23:59'}`);
+        return endTime < new Date();
+    };
+
+    const handleSendEvaluations = async (oppId: string) => {
+        if (!user) return;
+        setSendingEvaluationId(oppId);
+        try {
+            const idToken = await auth.currentUser?.getIdToken();
+            if (!idToken) {
+                toast.error('يرجى تسجيل الدخول مرة أخرى');
+                return;
+            }
+            const res = await fetch(`/api/opportunities/${oppId}/send-evaluations`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success(`تم إرسال طلب التقييم بنجاح! (${data.sent} متطوع) ⭐`);
+                // Mark locally so the button disappears
+                setOpportunities(prev =>
+                    prev.map(o =>
+                        o.id === oppId ? { ...o, evaluationEmailsSent: true } as any : o
+                    )
+                );
+            } else {
+                toast.error(data.error || 'فشل إرسال طلبات التقييم');
+            }
+        } catch (error: any) {
+            console.error('Send evaluations error:', error);
+            toast.error('حدث خطأ أثناء إرسال طلبات التقييم');
+        } finally {
+            setSendingEvaluationId(null);
         }
     };
 
@@ -157,9 +202,9 @@ export default function OrganizationDashboard() {
                                     <div className="flex items-start justify-between gap-2">
                                         <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-relaxed">{opp.title}</h3>
                                         <Badge
-                                            variant={opp.status === 'open' ? 'success' : 'danger'}
+                                            variant={opp.status === 'open' ? (isOpportunityPast(opp) ? 'warning' : 'success') : 'danger'}
                                         >
-                                            {opp.status === 'open' ? 'متاح' : 'مغلق'}
+                                            {isOpportunityPast(opp) ? 'منتهية' : opp.status === 'open' ? 'متاح' : 'مغلق'}
                                         </Badge>
                                     </div>
 
@@ -193,6 +238,19 @@ export default function OrganizationDashboard() {
                                                 تعديل الفرصة
                                             </Button>
                                         </Link>
+
+                                        {/* Evaluation Button - shown only for past opportunities */}
+                                        {isOpportunityPast(opp) && !(opp as any).evaluationEmailsSent && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                icon={<IoStarOutline />}
+                                                loading={sendingEvaluationId === opp.id}
+                                                onClick={() => handleSendEvaluations(opp.id)}
+                                            >
+                                                إرسال طلب التقييم
+                                            </Button>
+                                        )}
 
                                         {/* Delete Button */}
                                         <button

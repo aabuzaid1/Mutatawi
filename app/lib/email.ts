@@ -16,7 +16,7 @@ function getTransporter() {
 }
 
 const FROM_EMAIL = `متطوع <${process.env.SMTP_EMAIL}>`;
-const SITE_URL = 'https://mutatawi.vercel.app';
+const SITE_URL = 'https://mutatawi.com';
 const LOGO_URL = `${SITE_URL}/logo.png`;
 
 /* ==================== Shared Template Wrapper ==================== */
@@ -80,7 +80,7 @@ function emailLayout(options: {
                 هذا البريد مرسل من منصة <strong style="color:#64748b;">متطوع</strong>
               </p>
               <p style="margin:0;font-size:12px;color:#cbd5e1;">
-                <a href="${SITE_URL}" style="color:#6366f1;text-decoration:none;">mutatawi.vercel.app</a>
+                <a href="${SITE_URL}" style="color:#6366f1;text-decoration:none;">mutatawi.com</a>
               </p>
               <p style="margin:12px 0 0;font-size:11px;color:#cbd5e1;">© ${new Date().getFullYear()} متطوع — جميع الحقوق محفوظة</p>
             </td>
@@ -368,6 +368,43 @@ export async function sendOtpEmail(
       headerColor: '#eef2ff',
       headerTitle: 'رمز التحقق',
       headerIcon: '🔐',
+      bodyHtml,
+    }),
+  });
+}
+
+/* ==================== EVALUATION REQUEST (to volunteer after opportunity ends) ==================== */
+export async function sendEvaluationEmail(
+  volunteerName: string,
+  volunteerEmail: string,
+  opportunityTitle: string
+) {
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً <strong>${volunteerName}</strong>،
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      شكراً لمشاركتك في الفرصة التطوعية التالية:
+    </p>
+    ${infoCard(opportunityTitle, '#fffbeb', '#fde68a', '#92400e', '🌟')}
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      نتمنى أن تكون تجربتك رائعة! رأيك مهم جداً لنا وللمتطوعين الآخرين.
+      يرجى تقييم تجربتك لمساعدتنا في تحسين الفرص التطوعية المستقبلية.
+    </p>
+    ${ctaButton('قيّم تجربتك الآن', SITE_URL + '/volunteer', '#f59e0b')}
+    <p style="font-size:13px;color:#94a3b8;line-height:1.8;margin:16px 0 0;text-align:center;">
+      ⏱️ لن يستغرق التقييم أكثر من دقيقة واحدة
+    </p>
+  `;
+
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
+    to: volunteerEmail,
+    subject: `⭐ شاركنا رأيك — كيف كانت تجربتك في "${opportunityTitle}"؟`,
+    html: emailLayout({
+      headerColor: '#fefce8',
+      headerTitle: 'قيّم تجربتك التطوعية!',
+      headerIcon: '⭐',
       bodyHtml,
     }),
   });

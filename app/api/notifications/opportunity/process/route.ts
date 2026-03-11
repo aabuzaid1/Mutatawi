@@ -22,7 +22,7 @@ import { sendNewOpportunityNotification } from '@/app/lib/email';
 
 export const runtime = 'nodejs';
 
-const SITE_URL = 'https://mutatawi.vercel.app';
+const SITE_URL = 'https://mutatawi.com';
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 50;
 const LOCK_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
