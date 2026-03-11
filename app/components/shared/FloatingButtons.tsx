@@ -73,7 +73,7 @@ export default function FloatingButtons() {
     };
 
     const handleShare = (getUrl: (url: string) => string) => {
-        const siteUrl = 'https://mutatawi.vercel.app/';
+        const siteUrl = 'https://mutatawi.com/';
         window.open(getUrl(siteUrl), '_blank', 'noopener,noreferrer,width=600,height=400');
     };
 
