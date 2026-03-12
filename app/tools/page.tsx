@@ -61,6 +61,7 @@ const converterTools = [
         iconColor: 'text-indigo-600',
         borderColor: 'hover:border-indigo-200',
         href: '/tools/pdf-to-word',
+        requiresAuth: true,
     },
     {
         id: 'word-to-pdf',
@@ -71,6 +72,7 @@ const converterTools = [
         iconColor: 'text-violet-600',
         borderColor: 'hover:border-violet-200',
         href: '/tools/word-to-pdf',
+        requiresAuth: true,
     },
     {
         id: 'ppt-to-pdf',
@@ -81,6 +83,7 @@ const converterTools = [
         iconColor: 'text-orange-600',
         borderColor: 'hover:border-orange-200',
         href: '/tools/ppt-to-pdf',
+        requiresAuth: true,
     },
     {
         id: 'excel-to-pdf',
@@ -91,6 +94,7 @@ const converterTools = [
         iconColor: 'text-green-600',
         borderColor: 'hover:border-green-200',
         href: '/tools/excel-to-pdf',
+        requiresAuth: true,
     },
     {
         id: 'pdf-to-image',
@@ -101,6 +105,7 @@ const converterTools = [
         iconColor: 'text-pink-600',
         borderColor: 'hover:border-pink-200',
         href: '/tools/pdf-to-image',
+        requiresAuth: true,
     },
     {
         id: 'image-to-pdf',
@@ -111,6 +116,7 @@ const converterTools = [
         iconColor: 'text-cyan-600',
         borderColor: 'hover:border-cyan-200',
         href: '/tools/image-to-pdf',
+        requiresAuth: true,
     },
     {
         id: 'merge-pdf',
@@ -121,6 +127,7 @@ const converterTools = [
         iconColor: 'text-red-600',
         borderColor: 'hover:border-red-200',
         href: '/tools/merge-pdf',
+        requiresAuth: true,
     },
 ];
 
@@ -190,7 +197,7 @@ export default function ToolsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                             {converterTools.map((tool, i) => (
                                 <motion.div key={tool.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 + 0.2 }}>
-                                    <ToolCard tool={tool} user={user} />
+                                    <ToolCard tool={tool} requiresAuth={tool.requiresAuth} user={user} />
                                 </motion.div>
                             ))}
                         </div>
