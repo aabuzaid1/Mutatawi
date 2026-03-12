@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)](https://typescriptlang.org/)
 [![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000?logo=vercel)](https://mutatawi.vercel.app/)
 
-[🌐 الموقع المباشر](https://mutatawi.vercel.app/) · [📖 التوثيق](./docs/)
+[🌐 الموقع المباشر](https://www.mutatawi.com/) · [📖 التوثيق](./docs/)
 
 </div>
 
