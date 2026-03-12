@@ -12,6 +12,7 @@ import {
     IoLayersOutline,
     IoTrophyOutline,
     IoLockClosedOutline,
+    IoDocumentTextOutline,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { getCourse, getCourseProgress, markLessonComplete } from '@/app/lib/firestore';
@@ -175,24 +176,36 @@ export default function CourseDetailPage() {
                     </Link>
 
                     <div className="flex flex-col lg:flex-row gap-6">
-                        {/* Main Content — Video Player */}
+                        {/* Main Content — Video/Activity Player */}
                         <div className="flex-1">
-                            {/* Video Player */}
-                            <div className="bg-black rounded-2xl overflow-hidden shadow-xl mb-6 aspect-video">
-                                {currentLesson ? (
-                                    <iframe
-                                        src={`https://www.youtube.com/embed/${currentLesson.youtubeVideoId}?rel=0`}
-                                        title={currentLesson.title}
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                        className="w-full h-full"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                        <p>لا يوجد فيديو</p>
+                            {/* Content Player */}
+                            {currentLesson?.type === 'activity' ? (
+                                <div className="bg-white rounded-2xl overflow-hidden shadow-xl mb-6 border border-slate-100">
+                                    <div className="max-h-[70vh] overflow-y-auto">
+                                        <img
+                                            src={currentLesson.activityImageUrl}
+                                            alt={currentLesson.title}
+                                            className="w-full h-auto"
+                                        />
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="bg-black rounded-2xl overflow-hidden shadow-xl mb-6 aspect-video">
+                                    {currentLesson ? (
+                                        <iframe
+                                            src={`https://www.youtube.com/embed/${currentLesson.youtubeVideoId}?rel=0`}
+                                            title={currentLesson.title}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            className="w-full h-full"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <p>لا يوجد فيديو</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Current Lesson Info */}
                             {currentLesson && (
@@ -292,45 +305,62 @@ export default function CourseDetailPage() {
                                     <h3 className="font-bold text-slate-800 text-sm">محتوى الكورس</h3>
                                 </div>
                                 <div className="divide-y divide-slate-50 max-h-[500px] overflow-y-auto">
-                                    {course.lessons?.map((lesson, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => setActiveLesson(index)}
-                                            className={`w-full flex items-center gap-3 p-3.5 text-right transition-all hover:bg-slate-50 ${activeLesson === index ? 'bg-primary-50 border-r-3 border-primary-500' : ''
-                                                }`}
-                                        >
-                                            {/* Completion Check */}
-                                            <div className="flex-shrink-0">
-                                                {isLessonComplete(index) ? (
-                                                    <IoCheckmarkCircle className="text-green-500" size={22} />
-                                                ) : (
-                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${activeLesson === index
-                                                            ? 'border-primary-500 text-primary-600 bg-primary-50'
-                                                            : 'border-slate-300 text-slate-400'
-                                                        }`}>
-                                                        {index + 1}
+                                    {course.lessons?.map((lesson, index) => {
+                                        const showSectionHeader = lesson.section && (index === 0 || course.lessons[index - 1]?.section !== lesson.section);
+                                        return (
+                                            <div key={index}>
+                                                {showSectionHeader && (
+                                                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                                                        <p className="text-xs font-bold text-slate-600 flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-primary-500"></span>
+                                                            {lesson.section}
+                                                        </p>
                                                     </div>
                                                 )}
-                                            </div>
+                                                <button
+                                                    onClick={() => setActiveLesson(index)}
+                                                    className={`w-full flex items-center gap-3 p-3.5 text-right transition-all hover:bg-slate-50 ${activeLesson === index ? 'bg-primary-50 border-r-3 border-primary-500' : ''
+                                                        }`}
+                                                >
+                                                    {/* Completion Check */}
+                                                    <div className="flex-shrink-0">
+                                                        {isLessonComplete(index) ? (
+                                                            <IoCheckmarkCircle className="text-green-500" size={22} />
+                                                        ) : (
+                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${activeLesson === index
+                                                                    ? 'border-primary-500 text-primary-600 bg-primary-50'
+                                                                    : 'border-slate-300 text-slate-400'
+                                                                }`}>
+                                                                {index + 1}
+                                                            </div>
+                                                        )}
+                                                    </div>
 
-                                            {/* Lesson Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-medium truncate ${activeLesson === index ? 'text-primary-700' : 'text-slate-700'
-                                                    }`}>
-                                                    {lesson.title}
-                                                </p>
-                                                <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                                                    <IoTimeOutline size={12} />
-                                                    {lesson.duration}
-                                                </p>
-                                            </div>
+                                                    {/* Lesson Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-sm font-medium truncate ${activeLesson === index ? 'text-primary-700' : 'text-slate-700'
+                                                            }`}>
+                                                            {lesson.type === 'activity' ? '📋 ' : ''}{lesson.title}
+                                                        </p>
+                                                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                                                            {lesson.type === 'activity' ? (
+                                                                <><IoDocumentTextOutline size={12} /> نشاط تطبيقي</>
+                                                            ) : (
+                                                                <><IoTimeOutline size={12} /> {lesson.duration}</>
+                                                            )}
+                                                        </p>
+                                                    </div>
 
-                                            {/* Play indicator */}
-                                            {activeLesson === index && (
-                                                <IoPlayCircleOutline className="text-primary-500 flex-shrink-0" size={20} />
-                                            )}
-                                        </button>
-                                    ))}
+                                                    {/* Play/Activity indicator */}
+                                                    {activeLesson === index && (
+                                                        lesson.type === 'activity' ?
+                                                            <IoDocumentTextOutline className="text-primary-500 flex-shrink-0" size={20} /> :
+                                                            <IoPlayCircleOutline className="text-primary-500 flex-shrink-0" size={20} />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

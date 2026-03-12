@@ -103,9 +103,12 @@ export interface OpportunityFilters {
 // Course types
 export interface Lesson {
     title: string;
-    youtubeVideoId: string;
+    type: 'video' | 'activity';
+    youtubeVideoId?: string;      // For video lessons
+    activityImageUrl?: string;    // For activity lessons (image URL)
     duration: string; // e.g. "12:34"
     order: number;
+    section?: string;             // Section name (e.g., "Gmail", "Google Calendar")
 }
 
 export interface Course {
