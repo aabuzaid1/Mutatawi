@@ -54,7 +54,7 @@ const volunteerTools = [
 const converterTools = [
     {
         id: 'pdf-to-word',
-        title: 'PDF ← Word',
+        title: 'PDF إلى Word',
         description: 'حوّل ملفات PDF إلى مستندات Word.',
         icon: IoSwapHorizontalOutline,
         bgColor: 'bg-indigo-50',
@@ -64,7 +64,7 @@ const converterTools = [
     },
     {
         id: 'word-to-pdf',
-        title: 'Word ← PDF',
+        title: 'Word إلى PDF',
         description: 'حوّل مستندات Word إلى PDF.',
         icon: IoSwapHorizontalOutline,
         bgColor: 'bg-violet-50',
@@ -74,7 +74,7 @@ const converterTools = [
     },
     {
         id: 'ppt-to-pdf',
-        title: 'PowerPoint ← PDF',
+        title: 'PowerPoint إلى PDF',
         description: 'حوّل عروض PowerPoint إلى PDF.',
         icon: IoSwapHorizontalOutline,
         bgColor: 'bg-orange-50',
@@ -84,7 +84,7 @@ const converterTools = [
     },
     {
         id: 'excel-to-pdf',
-        title: 'Excel ← PDF',
+        title: 'Excel إلى PDF',
         description: 'حوّل جداول Excel إلى PDF.',
         icon: IoSwapHorizontalOutline,
         bgColor: 'bg-green-50',
@@ -94,7 +94,7 @@ const converterTools = [
     },
     {
         id: 'pdf-to-image',
-        title: 'PDF ← صورة',
+        title: 'PDF إلى صورة',
         description: 'حوّل صفحات PDF إلى صور PNG.',
         icon: IoImageOutline,
         bgColor: 'bg-pink-50',
@@ -104,7 +104,7 @@ const converterTools = [
     },
     {
         id: 'image-to-pdf',
-        title: 'صورة ← PDF',
+        title: 'صورة إلى PDF',
         description: 'حوّل الصور إلى ملف PDF.',
         icon: IoImageOutline,
         bgColor: 'bg-cyan-50',
