@@ -161,8 +161,8 @@ export async function POST(request: NextRequest) {
     // Sanitize email
     const sanitizedEmail = email.trim().toLowerCase();
 
-    // استخدم origin الطلب (localhost في التطوير، الدومين الحقيقي في الإنتاج)
-    const origin = request.headers.get('origin') || SITE_URL;
+    // ✅ دائماً نستخدم SITE_URL الرسمي — لا نثق بـ Origin header لأنه قابل للتزوير
+    const origin = SITE_URL;
 
     console.log('[reset-password API] Generating reset link for:', sanitizedEmail);
 

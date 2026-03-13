@@ -12,8 +12,52 @@ import { adminDb, adminAuth } from '@/app/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 
+// ── Rate Limiter (In-Memory) ────────────────────────
+const rateLimitMap = new Map<string, { count: number; firstRequest: number }>();
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 دقيقة
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
+function cleanupRateLimit() {
+    const now = Date.now();
+    for (const [key, value] of Array.from(rateLimitMap.entries())) {
+        if (now - value.firstRequest > RATE_LIMIT_WINDOW_MS) {
+            rateLimitMap.delete(key);
+        }
+    }
+}
+
+function isRateLimited(ip: string): boolean {
+    cleanupRateLimit();
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    if (!entry) {
+        rateLimitMap.set(ip, { count: 1, firstRequest: now });
+        return false;
+    }
+
+    if (now - entry.firstRequest > RATE_LIMIT_WINDOW_MS) {
+        rateLimitMap.set(ip, { count: 1, firstRequest: now });
+        return false;
+    }
+
+    entry.count++;
+    return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
 export async function POST(request: NextRequest) {
     try {
+        // ========== Rate Limiting ==========
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+            || request.headers.get('x-real-ip')
+            || 'unknown';
+
+        if (isRateLimited(ip)) {
+            return NextResponse.json(
+                { error: 'تم تجاوز الحد المسموح. حاول مرة أخرى بعد 15 دقيقة.' },
+                { status: 429 }
+            );
+        }
         const body = await request.json();
         const { email, newPassword } = body;
 

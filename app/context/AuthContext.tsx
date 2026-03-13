@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // Set cookie so middleware knows user is authenticated on refresh
                 try {
                     const token = await firebaseUser.getIdToken();
-                    document.cookie = `firebase-token=${token}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+                    document.cookie = `firebase-token=${token}; path=/; max-age=${60 * 60}; SameSite=Lax; Secure`;
                 } catch { }
             } else {
                 setProfile(null);

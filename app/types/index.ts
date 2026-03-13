@@ -119,8 +119,9 @@ export interface Course {
     thumbnail: string;
     totalLessons: number;
     totalDuration: string;
-    level: 'مبتدئ' | 'متوسط' | 'متقدم';
+    level: 'مبتدئ' | 'متوسط' | 'متقدم' | '';
     lessons: Lesson[];
+    status: 'draft' | 'published';
     createdAt: Date;
 }
 

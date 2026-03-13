@@ -53,9 +53,11 @@ export default function CoursesPage() {
         load();
     }, [activeCategory]);
 
-    const filtered = courses.filter(c =>
-        c.title.includes(search) || c.description.includes(search)
-    );
+    const filtered = courses.filter(c => {
+        // Only show published courses (or courses without status field for backwards compat)
+        if (c.status && c.status !== 'published') return false;
+        return c.title.includes(search) || c.description.includes(search);
+    });
 
     return (
         <>
