@@ -460,6 +460,32 @@ export async function getCourses(category?: string) {
     }
 }
 
+export async function createCourse(data: Omit<Course, 'id' | 'createdAt'>) {
+    const docRef = await addDoc(collection(db, 'courses'), {
+        ...data,
+        createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+}
+
+export async function updateCourseData(id: string, data: Partial<Course>) {
+    const { id: _id, createdAt: _createdAt, ...updateData } = data as any;
+    await updateDoc(doc(db, 'courses', id), updateData);
+}
+
+export async function deleteCourse(id: string) {
+    // Delete course progress records
+    const progressQuery = query(
+        collection(db, 'courseProgress'),
+        where('courseId', '==', id)
+    );
+    const progressSnap = await getDocs(progressQuery);
+    const deletePromises = progressSnap.docs.map(d => deleteDoc(doc(db, 'courseProgress', d.id)));
+    await Promise.all(deletePromises);
+    // Delete the course
+    await deleteDoc(doc(db, 'courses', id));
+}
+
 export async function getCourse(id: string): Promise<Course | null> {
     const docSnap = await getDoc(doc(db, 'courses', id));
     if (!docSnap.exists()) return null;

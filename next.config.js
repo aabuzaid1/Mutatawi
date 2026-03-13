@@ -15,19 +15,9 @@ const nextConfig = {
         FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
         FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     },
-    // Forward server env vars to API routes on Vercel
-    // ⚠️ Only non-secret vars that API routes need at runtime
-    env: {
-        SMTP_HOST: process.env.SMTP_HOST,
-        SMTP_PORT: process.env.SMTP_PORT,
-        SMTP_USER: process.env.SMTP_USER,
-        SMTP_PASS: process.env.SMTP_PASS,
-        SMTP_EMAIL: process.env.SMTP_EMAIL,
-        SMTP_PASSWORD: process.env.SMTP_PASSWORD,
-        FROM_EMAIL: process.env.FROM_EMAIL,
-        FIREBASE_SERVICE_ACCOUNT_KEY_BASE64: process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64,
-        FIREBASE_SERVICE_ACCOUNT_KEY: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-    },
+    // ✅ Secret env vars (SMTP, Firebase Service Account) are accessed via
+    // process.env directly in API routes — no need to forward them here.
+    // The `env` block exposes vars to the BROWSER, so never put secrets here.
     // Proxy Firebase Auth
     async rewrites() {
         return [
