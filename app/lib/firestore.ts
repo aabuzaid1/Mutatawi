@@ -568,3 +568,106 @@ export async function getVolunteerCourseProgress(volunteerId: string): Promise<C
         completedAt: d.data().completedAt?.toDate?.() || null,
     })) as CourseProgress[];
 }
+
+// ===================== COURSE ANALYTICS =====================
+
+export interface LearnerProgress {
+    visitorId: string;
+    userName: string;
+    userEmail: string;
+    completedLessons: number;
+    totalLessons: number;
+    percent: number;
+    completedAt: Date | null;
+}
+
+export interface CourseAnalytics {
+    courseId: string;
+    courseTitle: string;
+    totalLessons: number;
+    totalLearners: number;
+    totalCompleters: number;
+    avgProgress: number;
+    lessonCompletionCounts: number[];
+    learners: LearnerProgress[];
+}
+
+export async function getAllCoursesAnalytics(): Promise<CourseAnalytics[]> {
+    // 1. Get all courses
+    const coursesSnap = await getDocs(query(collection(db, 'courses'), orderBy('createdAt', 'desc')));
+    const courses = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (Course & { id: string })[];
+
+    // 2. Get ALL courseProgress docs
+    const progressSnap = await getDocs(collection(db, 'courseProgress'));
+    const allProgress = progressSnap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        completedAt: d.data().completedAt?.toDate?.() || null,
+    })) as CourseProgress[];
+
+    // 3. Get unique volunteer IDs to fetch names
+    const volunteerIds = Array.from(new Set(allProgress.map(p => p.volunteerId)));
+    const volunteerMap: Record<string, { name: string; email: string }> = {};
+    await Promise.all(
+        volunteerIds.map(async (vid) => {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', vid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    volunteerMap[vid] = {
+                        name: data.displayName || 'مستخدم',
+                        email: data.email || '',
+                    };
+                }
+            } catch { }
+        })
+    );
+
+    // 4. Aggregate per course
+    return courses.map(course => {
+        const courseProgress = allProgress.filter(p => p.courseId === course.id);
+        const totalLessons = course.lessons?.length || course.totalLessons || 0;
+
+        const lessonCompletionCounts = new Array(totalLessons).fill(0);
+        let totalCompletedLessons = 0;
+
+        const learners: LearnerProgress[] = courseProgress.map(p => {
+            const completed = p.completedLessons || [];
+            completed.forEach(idx => {
+                if (idx >= 0 && idx < totalLessons) {
+                    lessonCompletionCounts[idx]++;
+                }
+            });
+            totalCompletedLessons += completed.length;
+
+            const vol = volunteerMap[p.volunteerId];
+            return {
+                visitorId: p.volunteerId,
+                userName: vol?.name || 'مستخدم',
+                userEmail: vol?.email || '',
+                completedLessons: completed.length,
+                totalLessons,
+                percent: totalLessons > 0 ? Math.round((completed.length / totalLessons) * 100) : 0,
+                completedAt: p.completedAt,
+            };
+        });
+
+        const totalLearners = courseProgress.length;
+        const totalCompleters = learners.filter(l => l.percent === 100).length;
+        const avgProgress = totalLearners > 0
+            ? Math.round(totalCompletedLessons / (totalLearners * totalLessons) * 100)
+            : 0;
+
+        return {
+            courseId: course.id,
+            courseTitle: course.title,
+            totalLessons,
+            totalLearners,
+            totalCompleters,
+            avgProgress: isNaN(avgProgress) ? 0 : avgProgress,
+            lessonCompletionCounts,
+            learners: learners.sort((a, b) => b.percent - a.percent),
+        };
+    });
+}
+
