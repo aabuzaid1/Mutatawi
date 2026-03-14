@@ -17,6 +17,7 @@ import {
     IoSearchOutline,
     IoMailOutline,
     IoPersonAddOutline,
+    IoStatsChartOutline,
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
 import { loadAdminEmails, isAdmin, getAdminEmails, addAdminEmail, removeAdminEmail, initAdminEmails } from '@/app/lib/adminConfig';
@@ -214,6 +215,13 @@ export default function AdminCoursesPage() {
                                     <IoMailOutline size={18} />
                                     المشرفين
                                 </button>
+                                <Link
+                                    href="/admin/courses/analytics"
+                                    className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all text-sm"
+                                >
+                                    <IoStatsChartOutline size={18} />
+                                    تحليلات
+                                </Link>
                                 <Link
                                     href="/admin/courses/new"
                                     className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300"
