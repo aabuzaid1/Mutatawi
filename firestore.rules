@@ -76,6 +76,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ===================== COURSES =====================
+    // الكل يقرأ الكورسات (الصفحة العامة)
+    // الكتابة محصورة بالمسجلين (الأدمن يستخدم Admin SDK)
+    match /courses/{courseId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
     // ===================== COURSE PROGRESS =====================
     match /courseProgress/{docId} {
       allow read: if request.auth != null;

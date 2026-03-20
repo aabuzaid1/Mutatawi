@@ -19,6 +19,8 @@ const Stats = dynamic(() => import('./components/landing/Stats'));
 const HowItWorks = dynamic(() => import('./components/landing/HowItWorks'));
 const FeaturedOpps = dynamic(() => import('./components/landing/FeaturedOpps'));
 const Testimonials = dynamic(() => import('./components/landing/Testimonials'));
+const FeaturedCourses = dynamic(() => import('./components/landing/FeaturedCourses'));
+const FeaturedTools = dynamic(() => import('./components/landing/FeaturedTools'));
 
 /**
  * مكون الصفحة الرئيسية.
@@ -36,7 +38,9 @@ export default function Home() {
             <Hero />
             <Stats />
             <HowItWorks />
+            <FeaturedCourses />
             <FeaturedOpps />
+            <FeaturedTools />
             <Testimonials />
 
             {/* CTA Section - only for guests */}
