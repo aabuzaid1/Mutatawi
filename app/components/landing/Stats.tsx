@@ -3,8 +3,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { IoPeopleOutline, IoTimeOutline, IoBusinessOutline, IoHeartOutline } from 'react-icons/io5';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/app/lib/firebase';
 
 function AnimatedCounter({ target, duration = 2.5 }: { target: number; duration?: number }) {
     const [count, setCount] = useState(0);
@@ -45,35 +43,14 @@ export default function Stats() {
     useEffect(() => {
         async function fetchStats() {
             try {
-                // 1. Count volunteers (users with role = 'volunteer')
-                const volunteersQuery = query(
-                    collection(db, 'users'),
-                    where('role', '==', 'volunteer')
-                );
-                const volunteersSnap = await getDocs(volunteersQuery);
-                setVolunteerCount(volunteersSnap.size);
+                const res = await fetch('/api/stats');
+                if (!res.ok) throw new Error('Failed to fetch stats');
+                const data = await res.json();
 
-                // Sum volunteer hours
-                let hours = 0;
-                volunteersSnap.forEach((doc) => {
-                    const data = doc.data();
-                    if (data.hoursVolunteered) {
-                        hours += data.hoursVolunteered;
-                    }
-                });
-                setTotalHours(Math.round(hours));
-
-                // 2. Count organizations (users with role = 'organization')
-                const orgsQuery = query(
-                    collection(db, 'users'),
-                    where('role', '==', 'organization')
-                );
-                const orgsSnap = await getDocs(orgsQuery);
-                setOrgCount(orgsSnap.size);
-
-                // 3. Count opportunities
-                const oppsSnap = await getDocs(collection(db, 'opportunities'));
-                setOppCount(oppsSnap.size);
+                setVolunteerCount(data.volunteerCount);
+                setTotalHours(data.totalHours);
+                setOrgCount(data.orgCount);
+                setOppCount(data.oppCount);
             } catch (error) {
                 console.error('Error fetching stats:', error);
             } finally {
