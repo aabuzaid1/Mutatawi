@@ -14,18 +14,30 @@ import {
     IoCloseOutline,
     IoAnalyticsOutline,
     IoGlobeOutline,
+    IoSettingsOutline,
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
 import { signOut } from '@/app/lib/auth';
 import { cn } from '@/app/lib/utils';
+import { loadAdminEmails, isAdmin } from '@/app/lib/adminConfig';
 
 export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const { profile } = useAuth();
+    const { user, profile } = useAuth();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [isAdminUser, setIsAdminUser] = useState(false);
 
     const isOrg = profile?.role === 'organization';
+
+    // Check if user is admin
+    useEffect(() => {
+        if (user?.email) {
+            loadAdminEmails().then(() => {
+                setIsAdminUser(isAdmin(user.email));
+            });
+        }
+    }, [user]);
 
     // Close sidebar on route change
     useEffect(() => {
@@ -115,6 +127,29 @@ export default function Sidebar() {
 
             {/* Footer */}
             <div className="p-3 sm:p-4 border-t border-slate-100 space-y-1">
+                {isAdminUser && (
+                    <Link href="/admin/courses" onClick={() => setIsMobileOpen(false)}>
+                        <motion.div
+                            whileHover={{ x: -4 }}
+                            whileTap={{ scale: 0.97 }}
+                            className={cn(
+                                'flex items-center gap-3 px-4 py-3.5 sm:py-3 rounded-xl font-medium transition-all duration-200 relative',
+                                pathname.startsWith('/admin')
+                                    ? 'bg-gradient-to-l from-amber-50 to-orange-50 text-amber-700 shadow-sm'
+                                    : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700'
+                            )}
+                        >
+                            <IoSettingsOutline size={22} className="sm:w-5 sm:h-5" />
+                            <span className="text-[15px] sm:text-sm">إدارة الكورسات</span>
+                            {pathname.startsWith('/admin') && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute right-0 w-1 h-8 bg-amber-500 rounded-l-full"
+                                />
+                            )}
+                        </motion.div>
+                    </Link>
+                )}
                 <button
                     onClick={async () => {
                         setIsMobileOpen(false);

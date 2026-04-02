@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { IoMailOutline, IoLockClosedOutline, IoLogoGoogle } from 'react-icons/io5';
 import { signIn, signInWithGoogle } from '@/app/lib/auth';
@@ -12,6 +12,8 @@ import Button from '../ui/Button';
 import toast from 'react-hot-toast';
 
 export default function LoginForm() {
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get('redirect');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -34,8 +36,10 @@ export default function LoginForm() {
 
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
-            // If profile is missing phone or location, redirect to complete profile
-            if (!profile?.phone || !profile?.location) {
+            // If redirect param exists, go there after login
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else if (!profile?.phone || !profile?.location) {
                 router.push('/complete-profile');
             } else {
                 router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
@@ -71,8 +75,9 @@ export default function LoginForm() {
 
             const profile = await getUserProfile(user.uid);
             toast.success('تم تسجيل الدخول بنجاح!');
-            // If profile is missing phone or location, redirect to complete profile
-            if (!profile?.phone || !profile?.location) {
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else if (!profile?.phone || !profile?.location) {
                 router.push('/complete-profile');
             } else {
                 router.push(profile?.role === 'organization' ? '/organization' : '/volunteer');
@@ -154,7 +159,7 @@ export default function LoginForm() {
                 {/* Register Link */}
                 <p className="text-center mt-5 sm:mt-6 text-sm sm:text-base text-slate-500">
                     ليس لديك حساب؟{' '}
-                    <Link href="/register" className="text-primary-600 font-bold hover:text-primary-700">
+                    <Link href={redirectUrl ? `/register?redirect=${encodeURIComponent(redirectUrl)}` : '/register'} className="text-primary-600 font-bold hover:text-primary-700">
                         سجّل الآن
                     </Link>
                 </p>

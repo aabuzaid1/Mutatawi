@@ -20,6 +20,7 @@ import {
     IoStatsChartOutline,
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
+import { signOut } from '@/app/lib/auth';
 import { loadAdminEmails, isAdmin, getAdminEmails, addAdminEmail, removeAdminEmail, initAdminEmails } from '@/app/lib/adminConfig';
 import { getCourses, deleteCourse, updateCourseData } from '@/app/lib/firestore';
 import { Course } from '@/app/types';
@@ -163,19 +164,86 @@ export default function AdminCoursesPage() {
 
     // Not authorized
     if (!user || !authorized) {
+        const handleSignOutAndRedirect = async (target: 'login' | 'register') => {
+            if (user) {
+                await signOut();
+            }
+            const redirectUrl = encodeURIComponent('/admin/courses');
+            if (target === 'login') {
+                window.location.href = `/login?redirect=${redirectUrl}`;
+            } else {
+                window.location.href = `/register?redirect=${redirectUrl}`;
+            }
+        };
+
         return (
             <>
                 <Navbar />
                 <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4">
-                    <div className="bg-red-50 rounded-2xl p-8 text-center max-w-md">
-                        <IoCloseCircleOutline size={48} className="text-red-400 mx-auto mb-4" />
-                        <h1 className="text-xl font-bold text-red-700 mb-2">غير مصرح</h1>
-                        <p className="text-red-500 text-sm">
-                            {!user
-                                ? 'يرجى تسجيل الدخول أولاً للوصول إلى لوحة الإدارة'
-                                : 'هذا الحساب غير مسموح له بالوصول إلى لوحة الإدارة'}
-                        </p>
-                    </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className="bg-white rounded-3xl p-8 sm:p-10 text-center max-w-md w-full shadow-xl border border-slate-100"
+                    >
+                        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                            <IoCloseCircleOutline size={36} className="text-red-400" />
+                        </div>
+                        <h1 className="text-2xl font-black text-slate-900 mb-2">غير مصرح بالدخول</h1>
+                        
+                        {!user ? (
+                            <>
+                                <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                                    يرجى تسجيل الدخول أو إنشاء حساب جديد للوصول إلى لوحة إدارة الكورسات
+                                </p>
+                                <div className="space-y-3">
+                                    <Link
+                                        href={`/login?redirect=${encodeURIComponent('/admin/courses')}`}
+                                        className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 hover:shadow-xl text-sm"
+                                    >
+                                        <IoMailOutline size={18} />
+                                        تسجيل الدخول
+                                    </Link>
+                                    <Link
+                                        href={`/register?redirect=${encodeURIComponent('/admin/courses')}`}
+                                        className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm"
+                                    >
+                                        <IoPersonAddOutline size={18} />
+                                        إنشاء حساب جديد
+                                    </Link>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-slate-500 text-sm leading-relaxed mb-3">
+                                    الحساب الحالي غير مسموح له بالوصول إلى لوحة الإدارة
+                                </p>
+                                <div className="bg-slate-50 rounded-xl px-4 py-3 mb-6 border border-slate-100">
+                                    <p className="text-xs text-slate-400 mb-1">الإيميل الحالي</p>
+                                    <p className="text-sm font-bold text-slate-700" dir="ltr">{user.email}</p>
+                                </div>
+                                <p className="text-xs text-slate-400 mb-4">
+                                    يمكنك تسجيل الخروج والدخول بحساب مصرح أو إنشاء حساب جديد
+                                </p>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => handleSignOutAndRedirect('login')}
+                                        className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-200 hover:shadow-xl text-sm"
+                                    >
+                                        <IoMailOutline size={18} />
+                                        تسجيل الدخول بحساب آخر
+                                    </button>
+                                    <button
+                                        onClick={() => handleSignOutAndRedirect('register')}
+                                        className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm"
+                                    >
+                                        <IoPersonAddOutline size={18} />
+                                        إنشاء حساب جديد
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </motion.div>
                 </div>
             </>
         );

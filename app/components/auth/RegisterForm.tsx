@@ -106,6 +106,8 @@ export default function RegisterForm() {
     const searchParams = useSearchParams();
 
     // Handle ?type= query param for deep linking from HowItWorks
+    // Handle ?redirect= for post-auth redirect
+    const redirectUrl = searchParams.get('redirect');
     useEffect(() => {
         const typeParam = searchParams.get('type');
         if (typeParam === 'volunteer' || typeParam === 'organization') {
@@ -262,7 +264,11 @@ export default function RegisterForm() {
             await signUp(email, password, name, selectedType, phone, governorate, selectedType === 'volunteer' ? emailNotifications : false);
             trackEvent('register_success', { role: selectedType });
             toast.success('تم إنشاء حسابك بنجاح! 🎉', { duration: 5000 });
-            router.push(`/${selectedType}`);
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else {
+                router.push(`/${selectedType}`);
+            }
         } catch (error: any) {
             if (error.code === 'auth/email-already-in-use') {
                 setOtpError('هذا البريد الإلكتروني مستخدم بالفعل');
@@ -305,7 +311,11 @@ export default function RegisterForm() {
         try {
             await signInWithGoogle();
             toast.success('تم تسجيل الدخول بنجاح!');
-            router.push('/complete-profile');
+            if (redirectUrl) {
+                router.push(redirectUrl);
+            } else {
+                router.push('/complete-profile');
+            }
         } catch (error: any) {
             toast.error('حدث خطأ أثناء تسجيل الدخول بجوجل.');
         }
@@ -428,7 +438,7 @@ export default function RegisterForm() {
                             {/* Login Link */}
                             <p className="text-center mt-6 text-slate-500">
                                 لديك حساب بالفعل؟{' '}
-                                <Link href="/login" className="text-primary-600 font-bold hover:text-primary-700">
+                                <Link href={redirectUrl ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : '/login'} className="text-primary-600 font-bold hover:text-primary-700">
                                     سجّل دخولك
                                 </Link>
                             </p>
