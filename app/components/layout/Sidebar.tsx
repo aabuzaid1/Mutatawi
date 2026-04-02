@@ -195,7 +195,7 @@ export default function Sidebar() {
                                 key={link.href}
                                 href={link.href}
                                 className={cn(
-                                    'flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[64px]',
+                                    'flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px]',
                                     isActive
                                         ? 'text-primary-600'
                                         : 'text-slate-400 hover:text-slate-600'
@@ -216,6 +216,20 @@ export default function Sidebar() {
                             </Link>
                         );
                     })}
+
+                    {/* Logout Button */}
+                    <button
+                        onClick={async () => {
+                            await signOut();
+                            router.push('/');
+                        }}
+                        className="flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] text-slate-400 hover:text-danger-600 active:scale-95"
+                    >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200">
+                            <IoLogOutOutline size={22} />
+                        </div>
+                        <span className="text-[11px] font-medium">خروج</span>
+                    </button>
                 </div>
 
                 {/* Safe area for bottom notch */}
