@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     IoArrowBackOutline,
@@ -12,11 +12,15 @@ import {
     IoDocumentTextOutline,
     IoChevronUpOutline,
     IoChevronDownOutline,
+    IoImageOutline,
+    IoCloudUploadOutline,
+    IoCloseOutline,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { createCourse } from '@/app/lib/firestore';
+import { uploadCourseThumbnail, compressImage } from '@/app/lib/storage';
 import { Lesson, CourseCategory } from '@/app/types';
 import Navbar from '@/app/components/layout/Navbar';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
@@ -72,9 +76,43 @@ export default function NewCoursePage() {
     const [category, setCategory] = useState<CourseCategory>('تقنية');
     const [level, setLevel] = useState<string>('');
     const [thumbnail, setThumbnail] = useState('');
+    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+    const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [totalDuration, setTotalDuration] = useState('');
     const [lessons, setLessons] = useState<LessonForm[]>([{ ...emptyLesson }]);
     const [saving, setSaving] = useState(false);
+
+    const handleFileSelect = (file: File) => {
+        if (!file.type.startsWith('image/')) {
+            toast.error('يرجى اختيار ملف صورة');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('حجم الصورة كبير جداً (الحد الأقصى 10MB)');
+            return;
+        }
+        setThumbnailFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setThumbnailPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file) handleFileSelect(file);
+    };
+
+    const removeThumbnail = () => {
+        setThumbnailFile(null);
+        setThumbnailPreview('');
+        setThumbnail('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     const addLesson = () => {
         const lastSection = lessons.length > 0 ? lessons[lessons.length - 1].section : '';
@@ -109,6 +147,23 @@ export default function NewCoursePage() {
 
         setSaving(true);
         try {
+            // Upload thumbnail if a file was selected
+            let thumbnailUrl = thumbnail;
+            if (thumbnailFile) {
+                setUploadingImage(true);
+                try {
+                    const compressed = await compressImage(thumbnailFile);
+                    thumbnailUrl = await uploadCourseThumbnail(compressed);
+                } catch (uploadError) {
+                    console.error('Error uploading thumbnail:', uploadError);
+                    toast.error('خطأ في رفع الصورة');
+                    setSaving(false);
+                    setUploadingImage(false);
+                    return;
+                }
+                setUploadingImage(false);
+            }
+
             const courseLessons: Lesson[] = validLessons.map((l, i) => ({
                 title: l.title,
                 type: l.type,
@@ -122,7 +177,7 @@ export default function NewCoursePage() {
                 title,
                 description,
                 category,
-                thumbnail,
+                thumbnail: thumbnailUrl,
                 totalLessons: courseLessons.length,
                 totalDuration: totalDuration || calculateTotalDuration(courseLessons),
                 level: level as any,
@@ -229,26 +284,77 @@ export default function NewCoursePage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1.5">رابط صورة الغلاف</label>
+                                <div className="sm:col-span-2">
+                                    <label className="block text-sm font-medium text-slate-600 mb-1.5">صورة الغلاف</label>
                                     <input
-                                        type="text"
-                                        value={thumbnail}
-                                        onChange={(e) => setThumbnail(e.target.value)}
-                                        placeholder="/courses/..."
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none text-sm"
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleFileSelect(file);
+                                        }}
+                                        className="hidden"
                                     />
+                                    {thumbnailPreview || thumbnail ? (
+                                        <div className="relative group rounded-xl overflow-hidden border-2 border-primary-200 bg-slate-50">
+                                            <img
+                                                src={thumbnailPreview || thumbnail}
+                                                alt="معاينة الغلاف"
+                                                className="w-full h-48 object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="px-4 py-2 bg-white text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-100 transition-all"
+                                                >
+                                                    تغيير الصورة
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={removeThumbnail}
+                                                    className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
+                                                >
+                                                    <IoCloseOutline size={20} />
+                                                </button>
+                                            </div>
+                                            {uploadingImage && (
+                                                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <LoadingSpinner size="md" />
+                                                        <span className="text-sm font-bold text-primary-600">جاري رفع الصورة...</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={handleDrop}
+                                            className="w-full h-48 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all group"
+                                        >
+                                            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center group-hover:bg-primary-100 transition-all">
+                                                <IoCloudUploadOutline size={28} className="text-slate-400 group-hover:text-primary-500 transition-all" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-bold text-slate-600">اضغط لاختيار صورة أو اسحبها هنا</p>
+                                                <p className="text-xs text-slate-400 mt-1">PNG, JPG, WebP (الحد الأقصى 10MB)</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1.5">المدة الإجمالية</label>
-                                    <input
-                                        type="text"
-                                        value={totalDuration}
-                                        onChange={(e) => setTotalDuration(e.target.value)}
-                                        placeholder="مثال: 2 ساعة"
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none text-sm"
-                                    />
-                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 mb-1.5">المدة الإجمالية</label>
+                                <input
+                                    type="text"
+                                    value={totalDuration}
+                                    onChange={(e) => setTotalDuration(e.target.value)}
+                                    placeholder="مثال: 2 ساعة"
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none text-sm"
+                                />
                             </div>
                         </div>
                     </div>
