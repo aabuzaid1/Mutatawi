@@ -27,11 +27,14 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 const categories: { label: string; value: CourseCategory }[] = [
+    { label: '🏫 جامعة العلوم التطبيقية', value: 'جامعة العلوم التطبيقية' },
+    { label: '🏫 جامعة الزيتونة', value: 'جامعة الزيتونة' },
+    { label: '🏫 الجامعة الأردنية', value: 'الجامعة الأردنية' },
+    { label: '🏫 جامعة الإسراء', value: 'جامعة الإسراء' },
+    { label: '🏫 جامعة البترا', value: 'جامعة البترا' },
+    { label: '🏫 جامعة البلقاء التطبيقية', value: 'جامعة البلقاء التطبيقية' },
+    { label: '🌱 تنمية شخصية', value: 'تنمية شخصية' },
     { label: '💻 تقنية', value: 'تقنية' },
-    { label: '🎯 قيادة', value: 'قيادة' },
-    { label: '🗣️ تواصل', value: 'تواصل' },
-    { label: '🩺 إسعافات', value: 'إسعافات' },
-    { label: '🌱 تطوير ذات', value: 'تطوير ذات' },
     { label: '📚 أخرى', value: 'أخرى' },
 ];
 
@@ -73,7 +76,7 @@ export default function NewCoursePage() {
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [category, setCategory] = useState<CourseCategory>('تقنية');
+    const [category, setCategory] = useState<CourseCategory>('جامعة العلوم التطبيقية');
     const [level, setLevel] = useState<string>('');
     const [thumbnail, setThumbnail] = useState('');
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);

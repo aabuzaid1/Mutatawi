@@ -18,11 +18,14 @@ import Footer from '@/app/components/layout/Footer';
 
 const categories: { label: string; value: CourseCategory | 'all' }[] = [
     { label: 'الكل', value: 'all' },
-    { label: '🎯 قيادة', value: 'قيادة' },
+    { label: '🏫 جامعة العلوم التطبيقية', value: 'جامعة العلوم التطبيقية' },
+    { label: '🏫 جامعة الزيتونة', value: 'جامعة الزيتونة' },
+    { label: '🏫 الجامعة الأردنية', value: 'الجامعة الأردنية' },
+    { label: '🏫 جامعة الإسراء', value: 'جامعة الإسراء' },
+    { label: '🏫 جامعة البترا', value: 'جامعة البترا' },
+    { label: '🏫 جامعة البلقاء التطبيقية', value: 'جامعة البلقاء التطبيقية' },
+    { label: '🌱 تنمية شخصية', value: 'تنمية شخصية' },
     { label: '💻 تقنية', value: 'تقنية' },
-    { label: '🗣️ تواصل', value: 'تواصل' },
-    { label: '🩺 إسعافات', value: 'إسعافات' },
-    { label: '🌱 تطوير ذات', value: 'تطوير ذات' },
     { label: '📚 أخرى', value: 'أخرى' },
 ];
 

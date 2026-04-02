@@ -125,7 +125,16 @@ export interface Course {
     createdAt: Date;
 }
 
-export type CourseCategory = 'قيادة' | 'تقنية' | 'تواصل' | 'إسعافات' | 'تطوير ذات' | 'أخرى';
+export type CourseCategory =
+    | 'جامعة العلوم التطبيقية'
+    | 'جامعة الزيتونة'
+    | 'الجامعة الأردنية'
+    | 'جامعة الإسراء'
+    | 'جامعة البترا'
+    | 'جامعة البلقاء التطبيقية'
+    | 'تنمية شخصية'
+    | 'تقنية'
+    | 'أخرى';
 
 export interface CourseProgress {
     id: string;
