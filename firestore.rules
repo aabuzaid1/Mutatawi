@@ -78,16 +78,22 @@ service cloud.firestore {
 
     // ===================== COURSES =====================
     // الكل يقرأ الكورسات (الصفحة العامة)
-    // المستخدمون المسجلون (المشرفون) يقدرون ينشئو كورسات
-    // التعديل والحذف فقط لصاحب الكورس (createdBy == uid)
+    // aabuzaid242@gmail.com = Super Admin — يقدر يعمل كل شي
+    // باقي المشرفين — ينشئو ويعدلو بس كورساتهم
     match /courses/{courseId} {
       allow read: if true;
-      // إنشاء: لازم يكون مسجل ويحط uid الخاص فيه كـ createdBy
+
+      // Super Admin يقدر ينشئ بدون قيود
+      // باقي المشرفين لازم يحطو uid الخاص فيهم كـ createdBy
       allow create: if request.auth != null 
-                    && request.resource.data.createdBy == request.auth.uid;
-      // تعديل وحذف: فقط صاحب الكورس
+                    && (request.auth.token.email == 'aabuzaid242@gmail.com'
+                        || request.resource.data.createdBy == request.auth.uid);
+
+      // Super Admin يقدر يعدل ويحذف أي كورس
+      // باقي المشرفين فقط كورساتهم
       allow update, delete: if request.auth != null 
-                            && resource.data.createdBy == request.auth.uid;
+                            && (request.auth.token.email == 'aabuzaid242@gmail.com'
+                                || resource.data.createdBy == request.auth.uid);
     }
 
     // ===================== COURSE PROGRESS =====================
