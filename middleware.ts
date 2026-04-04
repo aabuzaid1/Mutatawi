@@ -13,17 +13,26 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get('firebase-token')?.value;
     const { pathname } = request.nextUrl;
 
-    // المسارات المحمية — تتطلب تسجيل دخول
-    const protectedPaths = ['/admin', '/organization', '/volunteer'];
-    const isProtected = protectedPaths.some(p => pathname.startsWith(`/${p.replace('/', '')}`));
-
-    if (isProtected && !token) {
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', pathname);
-        return NextResponse.redirect(loginUrl);
+    // السماح بالمرور إذا في token
+    if (token) {
+        return NextResponse.next();
     }
 
-    return NextResponse.next();
+    // السماح بالمرور إذا الطلب جاي من صفحة تسجيل/دخول (Referer check)
+    // هذا يحل مشكلة race condition بعد التسجيل مباشرة
+    const referer = request.headers.get('referer') || '';
+    const isComingFromAuth = referer.includes('/register') || 
+                              referer.includes('/login') || 
+                              referer.includes('/complete-profile');
+    
+    if (isComingFromAuth) {
+        return NextResponse.next();
+    }
+
+    // لا يوجد token ولا referer من صفحة auth — أعد التوجيه لتسجيل الدخول
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
