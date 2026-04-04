@@ -77,22 +77,37 @@ service cloud.firestore {
     }
 
     // ===================== COURSES =====================
-    // الكل يقرأ الكورسات (الصفحة العامة)
-    // aabuzaid242@gmail.com = Super Admin — يقدر يعمل كل شي
-    // باقي المشرفين — ينشئو ويعدلو بس كورساتهم
+    // المستويات:
+    //   super_admin — كل الصلاحيات
+    //   editor      — يعدل كل الكورسات
+    //   creator     — ينشئ ويعدل كورساته فقط
+    
+    // Helper functions
+    function isAdminUser() {
+      return request.auth != null 
+             && exists(/databases/$(database)/documents/adminEmails/$(request.auth.token.email));
+    }
+    
+    function getAdminRole() {
+      return get(/databases/$(database)/documents/adminEmails/$(request.auth.token.email)).data.role;
+    }
+    
+    function isSuperAdminOrEditor() {
+      return isAdminUser() && (getAdminRole() == 'super_admin' || getAdminRole() == 'editor');
+    }
+    
     match /courses/{courseId} {
       allow read: if true;
-
-      // Super Admin يقدر ينشئ بدون قيود
-      // باقي المشرفين لازم يحطو uid الخاص فيهم كـ createdBy
-      allow create: if request.auth != null 
-                    && (request.auth.token.email == 'aabuzaid242@gmail.com'
-                        || request.resource.data.createdBy == request.auth.uid);
-
-      // Super Admin يقدر يعدل ويحذف أي كورس
-      // باقي المشرفين فقط كورساتهم
-      allow update, delete: if request.auth != null 
-                            && (request.auth.token.email == 'aabuzaid242@gmail.com'
+      
+      // إنشاء: أي مشرف مسجل + لازم يحط uid كـ createdBy
+      allow create: if isAdminUser() 
+                    && request.resource.data.createdBy == request.auth.uid;
+      
+      // تعديل وحذف:
+      //   super_admin + editor = كل الكورسات
+      //   creator = كورساته فقط (createdBy == uid)
+      allow update, delete: if isAdminUser()
+                            && (isSuperAdminOrEditor()
                                 || resource.data.createdBy == request.auth.uid);
     }
 

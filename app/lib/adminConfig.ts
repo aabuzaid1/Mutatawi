@@ -1,15 +1,23 @@
 /**
  * Admin Configuration — Client-side
- * ✅ يستخدم API Route بدل Firestore مباشرة للحماية من التلاعب
+ * ✅ يستخدم API Route مع دعم المستويات (super_admin, editor, creator)
  */
 
 import { auth } from './firebase';
+
+export type AdminRole = 'super_admin' | 'editor' | 'creator';
+
+export interface AdminEntry {
+    email: string;
+    role: AdminRole;
+}
 
 // Fallback email (أول إيميل أساسي)
 const FALLBACK_ADMIN_EMAIL = 'aabuzaid242@gmail.com';
 
 // ── Cache ────────────────────────────────────────────
-let cachedAdminEmails: string[] | null = null;
+let cachedAdmins: AdminEntry[] | null = null;
+let cachedCallerRole: AdminRole | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
 
@@ -25,30 +33,43 @@ async function getAuthHeader(): Promise<HeadersInit> {
 }
 
 /**
- * جلب قائمة الإيميلات المصرح لها من السيرفر
+ * جلب قائمة المشرفين مع مستوياتهم من السيرفر
  */
 export async function getAdminEmails(): Promise<string[]> {
+    const admins = await getAdminList();
+    return admins.map(a => a.email);
+}
+
+export async function getAdminList(): Promise<AdminEntry[]> {
     try {
         const headers = await getAuthHeader();
         const res = await fetch('/api/admin/emails', { headers });
-        if (!res.ok) throw new Error('Failed to fetch admin emails');
+        if (!res.ok) throw new Error('Failed to fetch admin list');
         const data = await res.json();
-        cachedAdminEmails = data.emails;
+        cachedAdmins = data.admins || [];
+        cachedCallerRole = data.callerRole || null;
         cacheTimestamp = Date.now();
-        return data.emails;
+        return cachedAdmins!;
     } catch (error) {
-        console.error('Error fetching admin emails:', error);
-        return [FALLBACK_ADMIN_EMAIL];
+        console.error('Error fetching admin list:', error);
+        return [{ email: FALLBACK_ADMIN_EMAIL, role: 'super_admin' }];
     }
 }
 
 /**
- * التحقق مما إذا كان الإيميل يملك صلاحيات الأدمن
+ * الحصول على مستوى المستخدم الحالي
+ */
+export function getCallerRole(): AdminRole | null {
+    return cachedCallerRole;
+}
+
+/**
+ * التحقق مما إذا كان الإيميل يملك صلاحيات الأدمن (أي مستوى)
  */
 export async function checkIsAdmin(email: string | null | undefined): Promise<boolean> {
     if (!email) return false;
-    const emails = await getAdminEmails();
-    return emails.includes(email.toLowerCase());
+    const admins = await getAdminList();
+    return admins.some(a => a.email === email.toLowerCase());
 }
 
 /**
@@ -56,8 +77,8 @@ export async function checkIsAdmin(email: string | null | undefined): Promise<bo
  */
 export async function loadAdminEmails(): Promise<string[]> {
     const now = Date.now();
-    if (cachedAdminEmails && (now - cacheTimestamp) < CACHE_DURATION) {
-        return cachedAdminEmails;
+    if (cachedAdmins && (now - cacheTimestamp) < CACHE_DURATION) {
+        return cachedAdmins.map(a => a.email);
     }
     return await getAdminEmails();
 }
@@ -67,32 +88,59 @@ export async function loadAdminEmails(): Promise<string[]> {
  */
 export function isAdmin(email: string | null | undefined): boolean {
     if (!email) return false;
-    if (cachedAdminEmails) {
-        return cachedAdminEmails.includes(email.toLowerCase());
+    if (cachedAdmins) {
+        return cachedAdmins.some(a => a.email === email.toLowerCase());
     }
     return email.toLowerCase() === FALLBACK_ADMIN_EMAIL;
 }
 
 /**
- * إضافة إيميل أدمن جديد (عبر السيرفر)
+ * الحصول على مستوى إيميل معين
  */
-export async function addAdminEmail(email: string): Promise<void> {
+export function getAdminRole(email: string | null | undefined): AdminRole | null {
+    if (!email || !cachedAdmins) return null;
+    const admin = cachedAdmins.find(a => a.email === email.toLowerCase());
+    return admin?.role || null;
+}
+
+/**
+ * هل المستخدم super_admin؟
+ */
+export function isSuperAdmin(email: string | null | undefined): boolean {
+    if (!email) return false;
+    if (email.toLowerCase() === FALLBACK_ADMIN_EMAIL) return true;
+    return getAdminRole(email) === 'super_admin';
+}
+
+/**
+ * هل يقدر يعدل كل الكورسات؟ (super_admin + editor)
+ */
+export function canEditAllCourses(email: string | null | undefined): boolean {
+    const role = getAdminRole(email);
+    return role === 'super_admin' || role === 'editor';
+}
+
+/**
+ * إضافة مشرف جديد (عبر السيرفر) — مع مستوى
+ */
+export async function addAdminEmail(email: string, role: AdminRole = 'creator'): Promise<void> {
     const headers = await getAuthHeader();
     const res = await fetch('/api/admin/emails', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        body: JSON.stringify({ email: email.toLowerCase().trim(), role }),
     });
     if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'حدث خطأ');
     }
     // Reset cache
-    cachedAdminEmails = null;
+    cachedAdmins = null;
+    cachedCallerRole = null;
 }
 
 /**
- * حذف إيميل أدمن (عبر السيرفر)
+ * حذف مشرف (عبر السيرفر)
  */
 export async function removeAdminEmail(email: string): Promise<void> {
     const headers = await getAuthHeader();
@@ -106,7 +154,8 @@ export async function removeAdminEmail(email: string): Promise<void> {
         throw new Error(data.error || 'حدث خطأ');
     }
     // Reset cache
-    cachedAdminEmails = null;
+    cachedAdmins = null;
+    cachedCallerRole = null;
 }
 
 /**

@@ -21,7 +21,7 @@ import {
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
 import { signOut } from '@/app/lib/auth';
-import { loadAdminEmails, isAdmin, getAdminEmails, addAdminEmail, removeAdminEmail, initAdminEmails } from '@/app/lib/adminConfig';
+import { loadAdminEmails, isAdmin, getAdminList, addAdminEmail, removeAdminEmail, initAdminEmails, isSuperAdmin, getAdminRole, canEditAllCourses, AdminRole, AdminEntry } from '@/app/lib/adminConfig';
 import { getCourses, deleteCourse, updateCourseData } from '@/app/lib/firestore';
 import { Course } from '@/app/types';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
@@ -39,8 +39,9 @@ export default function AdminCoursesPage() {
     const [authChecked, setAuthChecked] = useState(false);
 
     // Admin emails management
-    const [adminEmails, setAdminEmails] = useState<string[]>([]);
+    const [adminEmails, setAdminEmails] = useState<AdminEntry[]>([]);
     const [newEmail, setNewEmail] = useState('');
+    const [newRole, setNewRole] = useState<AdminRole>('creator');
     const [emailLoading, setEmailLoading] = useState(false);
     const [showEmailSection, setShowEmailSection] = useState(false);
 
@@ -81,8 +82,8 @@ export default function AdminCoursesPage() {
 
     const loadEmails = async () => {
         try {
-            const emails = await getAdminEmails();
-            setAdminEmails(emails);
+            const admins = await getAdminList();
+            setAdminEmails(admins);
         } catch (error) {
             console.error('Error loading admin emails:', error);
         }
@@ -94,10 +95,11 @@ export default function AdminCoursesPage() {
         if (!email.includes('@')) { toast.error('أدخل إيميل صحيح'); return; }
         setEmailLoading(true);
         try {
-            await addAdminEmail(email);
-            setAdminEmails(prev => [...prev, email]);
+            await addAdminEmail(email, newRole);
+            setAdminEmails(prev => [...prev, { email, role: newRole }]);
             setNewEmail('');
-            toast.success('تم إضافة الإيميل ✅');
+            setNewRole('creator');
+            toast.success('تم إضافة المشرف وإرسال إيميل الترحيب ✅');
         } catch (error: any) {
             toast.error(error.message || 'حدث خطأ');
         } finally {
@@ -109,8 +111,8 @@ export default function AdminCoursesPage() {
         setEmailLoading(true);
         try {
             await removeAdminEmail(email);
-            setAdminEmails(prev => prev.filter(e => e !== email));
-            toast.success('تم حذف الإيميل');
+            setAdminEmails(prev => prev.filter(e => e.email !== email));
+            toast.success('تم حذف المشرف');
         } catch (error: any) {
             toast.error(error.message || 'حدث خطأ');
         } finally {
@@ -309,49 +311,77 @@ export default function AdminCoursesPage() {
                             >
                                 <div className="flex items-center gap-2 mb-4">
                                     <IoShieldCheckmarkOutline size={20} className="text-primary-600" />
-                                    <h3 className="font-bold text-slate-800">الإيميلات المصرح لها</h3>
+                                    <h3 className="font-bold text-slate-800">المشرفين وصلاحياتهم</h3>
                                 </div>
 
-                                {/* Add Email */}
-                                <div className="flex gap-2 mb-4">
-                                    <input
-                                        type="email"
-                                        value={newEmail}
-                                        onChange={(e) => setNewEmail(e.target.value)}
-                                        placeholder="أدخل إيميل جديد..."
-                                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
-                                        dir="ltr"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddEmail()}
-                                    />
-                                    <button
-                                        onClick={handleAddEmail}
-                                        disabled={emailLoading || !newEmail.trim()}
-                                        className="flex items-center gap-1.5 px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all disabled:opacity-50"
-                                    >
-                                        <IoPersonAddOutline size={16} />
-                                        إضافة
-                                    </button>
+                                {/* Add Email — only for super_admin */}
+                                {isSuperAdmin(user?.email) && (
+                                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                                        <input
+                                            type="email"
+                                            value={newEmail}
+                                            onChange={(e) => setNewEmail(e.target.value)}
+                                            placeholder="أدخل إيميل المشرف الجديد..."
+                                            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                                            dir="ltr"
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddEmail()}
+                                        />
+                                        <select
+                                            value={newRole}
+                                            onChange={(e) => setNewRole(e.target.value as AdminRole)}
+                                            className="px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:border-primary-500 outline-none"
+                                        >
+                                            <option value="creator">📚 منشئ كورسات</option>
+                                            <option value="editor">✏️ محرر</option>
+                                            <option value="super_admin">👑 مدير عام</option>
+                                        </select>
+                                        <button
+                                            onClick={handleAddEmail}
+                                            disabled={emailLoading || !newEmail.trim()}
+                                            className="flex items-center gap-1.5 px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all disabled:opacity-50"
+                                        >
+                                            <IoPersonAddOutline size={16} />
+                                            إضافة
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Role Legend */}
+                                <div className="flex flex-wrap gap-2 mb-4 text-xs">
+                                    <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-bold">👑 مدير عام — كل الصلاحيات</span>
+                                    <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-bold">✏️ محرر — يعدل كل الكورسات</span>
+                                    <span className="px-2.5 py-1 bg-green-50 text-green-700 rounded-full font-bold">📚 منشئ — كورساته فقط</span>
                                 </div>
 
-                                {/* Email List */}
+                                {/* Admin List */}
                                 <div className="space-y-2">
-                                    {adminEmails.map((email) => (
-                                        <div key={email} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                                            <div className="flex items-center gap-2">
+                                    {adminEmails.map((admin) => (
+                                        <div key={admin.email} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <IoMailOutline size={16} className="text-slate-400" />
-                                                <span className="text-sm text-slate-700 font-medium" dir="ltr">{email}</span>
-                                                {email === user?.email?.toLowerCase() && (
+                                                <span className="text-sm text-slate-700 font-medium" dir="ltr">{admin.email}</span>
+                                                {admin.email === user?.email?.toLowerCase() && (
                                                     <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-bold">أنت</span>
                                                 )}
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                                                    admin.role === 'super_admin' ? 'bg-amber-100 text-amber-700' :
+                                                    admin.role === 'editor' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-green-100 text-green-700'
+                                                }`}>
+                                                    {admin.role === 'super_admin' ? '👑 مدير عام' :
+                                                     admin.role === 'editor' ? '✏️ محرر' : '📚 منشئ'}
+                                                </span>
                                             </div>
-                                            <button
-                                                onClick={() => handleRemoveEmail(email)}
-                                                disabled={emailLoading || email === 'aabuzaid242@gmail.com'}
-                                                className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                                title={email === 'aabuzaid242@gmail.com' ? 'لا يمكن حذف الإيميل الأساسي' : 'حذف'}
-                                            >
-                                                <IoTrashOutline size={16} />
-                                            </button>
+                                            {isSuperAdmin(user?.email) && (
+                                                <button
+                                                    onClick={() => handleRemoveEmail(admin.email)}
+                                                    disabled={emailLoading || admin.email === 'aabuzaid242@gmail.com'}
+                                                    className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    title={admin.email === 'aabuzaid242@gmail.com' ? 'لا يمكن حذف المدير العام الأساسي' : 'حذف'}
+                                                >
+                                                    <IoTrashOutline size={16} />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -455,28 +485,32 @@ export default function AdminCoursesPage() {
 
                                             {/* Actions */}
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <button
-                                                    onClick={() => handleTogglePublish(course)}
-                                                    disabled={actionLoading === course.id}
-                                                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
-                                                        course.status === 'published'
-                                                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                                            : 'bg-green-50 text-green-700 hover:bg-green-100'
-                                                    }`}
-                                                >
-                                                    {course.status === 'published' ? (
-                                                        <><IoEyeOffOutline size={15} /> إلغاء النشر</>
-                                                    ) : (
-                                                        <><IoEyeOutline size={15} /> نشر</>
-                                                    )}
-                                                </button>
-                                                <Link
-                                                    href={`/admin/courses/${course.id}/edit`}
-                                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all"
-                                                >
-                                                    <IoCreateOutline size={15} />
-                                                    تعديل
-                                                </Link>
+                                                {(canEditAllCourses(user?.email) || course.createdBy === user?.uid) && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleTogglePublish(course)}
+                                                            disabled={actionLoading === course.id}
+                                                            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                                                                course.status === 'published'
+                                                                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                                            }`}
+                                                        >
+                                                            {course.status === 'published' ? (
+                                                                <><IoEyeOffOutline size={15} /> إلغاء النشر</>
+                                                            ) : (
+                                                                <><IoEyeOutline size={15} /> نشر</>
+                                                            )}
+                                                        </button>
+                                                        <Link
+                                                            href={`/admin/courses/${course.id}/edit`}
+                                                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all"
+                                                        >
+                                                            <IoCreateOutline size={15} />
+                                                            تعديل
+                                                        </Link>
+                                                    </>
+                                                )}
                                                 <Link
                                                     href={`/courses/${course.id}`}
                                                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-slate-50 text-slate-600 hover:bg-slate-100 transition-all"
@@ -484,30 +518,34 @@ export default function AdminCoursesPage() {
                                                     <IoEyeOutline size={15} />
                                                     معاينة
                                                 </Link>
-                                                {deleteConfirm === course.id ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            onClick={() => handleDelete(course.id)}
-                                                            disabled={actionLoading === course.id}
-                                                            className="px-3 py-2 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-all disabled:opacity-50"
-                                                        >
-                                                            تأكيد الحذف
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setDeleteConfirm(null)}
-                                                            className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
-                                                        >
-                                                            إلغاء
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(course.id)}
-                                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-all"
-                                                    >
-                                                        <IoTrashOutline size={15} />
-                                                        حذف
-                                                    </button>
+                                                {(canEditAllCourses(user?.email) || course.createdBy === user?.uid) && (
+                                                    <>
+                                                        {deleteConfirm === course.id ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <button
+                                                                    onClick={() => handleDelete(course.id)}
+                                                                    disabled={actionLoading === course.id}
+                                                                    className="px-3 py-2 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-all disabled:opacity-50"
+                                                                >
+                                                                    تأكيد الحذف
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDeleteConfirm(null)}
+                                                                    className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                                                                >
+                                                                    إلغاء
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setDeleteConfirm(course.id)}
+                                                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                                                            >
+                                                                <IoTrashOutline size={15} />
+                                                                حذف
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         </div>

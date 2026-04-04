@@ -409,3 +409,93 @@ export async function sendEvaluationEmail(
     }),
   });
 }
+
+/* ==================== ADMIN INVITE EMAIL ==================== */
+
+type AdminRole = 'super_admin' | 'editor' | 'creator';
+
+const roleLabelMap: Record<AdminRole, string> = {
+  super_admin: 'مدير عام (Super Admin)',
+  editor: 'محرر (Editor)',
+  creator: 'منشئ كورسات (Creator)',
+};
+
+const roleEmojiMap: Record<AdminRole, string> = {
+  super_admin: '👑',
+  editor: '✏️',
+  creator: '📚',
+};
+
+const rolePermissionsMap: Record<AdminRole, string[]> = {
+  super_admin: [
+    '✅ إضافة وحذف المشرفين',
+    '✅ إنشاء ونشر كورسات جديدة',
+    '✅ تعديل وحذف جميع الكورسات',
+    '✅ إدارة كاملة للمنصة',
+  ],
+  editor: [
+    '✅ إنشاء ونشر كورسات جديدة',
+    '✅ تعديل وحذف جميع الكورسات',
+    '❌ لا يمكنك إضافة أو حذف مشرفين',
+  ],
+  creator: [
+    '✅ إنشاء ونشر كورسات جديدة',
+    '✅ تعديل وحذف كورساتك فقط',
+    '❌ لا يمكنك تعديل كورسات الآخرين',
+    '❌ لا يمكنك إضافة أو حذف مشرفين',
+  ],
+};
+
+export async function sendAdminInviteEmail(
+  email: string,
+  role: AdminRole
+) {
+  const roleLabel = roleLabelMap[role];
+  const roleEmoji = roleEmojiMap[role];
+  const permissions = rolePermissionsMap[role];
+
+  const permissionsHtml = permissions
+    .map(p => `<p style="font-size:14px;color:#334155;margin:6px 0;line-height:1.6;">${p}</p>`)
+    .join('');
+
+  const bodyHtml = `
+    <p style="font-size:16px;color:#334155;line-height:1.9;margin:0 0 12px;">
+      مرحباً 👋
+    </p>
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 16px;">
+      تمت إضافتك كـ <strong style="color:#6366f1;">${roleLabel} ${roleEmoji}</strong> في منصة <strong>متطوع</strong>.
+    </p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin:20px 0;">
+      <p style="font-size:14px;font-weight:700;color:#1e293b;margin:0 0 10px;">🔑 صلاحياتك:</p>
+      ${permissionsHtml}
+    </div>
+
+    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:18px 20px;margin:20px 0;">
+      <p style="font-size:14px;font-weight:700;color:#3730a3;margin:0 0 12px;">📖 كيف تضيف كورس جديد؟</p>
+      <p style="font-size:13px;color:#4338ca;margin:4px 0;line-height:1.8;">1️⃣ سجّل دخولك بهذا الإيميل</p>
+      <p style="font-size:13px;color:#4338ca;margin:4px 0;line-height:1.8;">2️⃣ افتح لوحة الإدارة من القائمة الجانبية</p>
+      <p style="font-size:13px;color:#4338ca;margin:4px 0;line-height:1.8;">3️⃣ اضغط "إضافة كورس جديد"</p>
+      <p style="font-size:13px;color:#4338ca;margin:4px 0;line-height:1.8;">4️⃣ أضف العنوان والوصف والدروس</p>
+      <p style="font-size:13px;color:#4338ca;margin:4px 0;line-height:1.8;">5️⃣ اضغط "حفظ ونشر" لنشر الكورس للجميع</p>
+    </div>
+
+    <p style="font-size:15px;color:#475569;line-height:1.9;margin:0 0 8px;">
+      شكراً لمساهمتك في إثراء المحتوى على منصة متطوع! 💪
+    </p>
+    ${ctaButton('ابدأ الآن — لوحة الإدارة', SITE_URL + '/admin/courses', '#6366f1')}
+  `;
+
+  await getTransporter().sendMail({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `${roleEmoji} تمت إضافتك كمشرف في منصة متطوع!`,
+    html: emailLayout({
+      headerColor: '#eef2ff',
+      headerTitle: 'مرحباً بك في فريق الإدارة!',
+      headerIcon: roleEmoji,
+      bodyHtml,
+    }),
+  });
+}
+
