@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ===================== COURSE THUMBNAILS =====================
+    // المستخدمين المسجلين فقط يقدرون يرفعون صور الكورسات
+    // الحد الأقصى 10MB + نوع الملف لازم يكون صورة
+    match /course-thumbnails/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ===================== DEFAULT: DENY ALL =====================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
