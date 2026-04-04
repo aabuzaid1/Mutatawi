@@ -123,10 +123,13 @@ export async function POST(request: NextRequest) {
         await adminDb.collection(COLLECTION).doc(email).set({ role });
         console.log(`[Admin Emails API] Added: ${email} as ${role}`);
 
-        // Send invite email (fire-and-forget)
-        sendAdminInviteEmail(email, role).catch(err => {
+        // Send invite email
+        try {
+            await sendAdminInviteEmail(email, role);
+            console.log(`[Admin Emails API] Invite email sent to: ${email}`);
+        } catch (err: any) {
             console.error('[Admin Emails API] Failed to send invite email:', err.message);
-        });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
