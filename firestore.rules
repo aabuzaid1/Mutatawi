@@ -78,10 +78,16 @@ service cloud.firestore {
 
     // ===================== COURSES =====================
     // الكل يقرأ الكورسات (الصفحة العامة)
-    // الكتابة ممنوعة من العميل — الأدمن يستخدم Admin SDK فقط
+    // المستخدمون المسجلون (المشرفون) يقدرون ينشئو كورسات
+    // التعديل والحذف فقط لصاحب الكورس (createdBy == uid)
     match /courses/{courseId} {
       allow read: if true;
-      allow create, update, delete: if false;
+      // إنشاء: لازم يكون مسجل ويحط uid الخاص فيه كـ createdBy
+      allow create: if request.auth != null 
+                    && request.resource.data.createdBy == request.auth.uid;
+      // تعديل وحذف: فقط صاحب الكورس
+      allow update, delete: if request.auth != null 
+                            && resource.data.createdBy == request.auth.uid;
     }
 
     // ===================== COURSE PROGRESS =====================

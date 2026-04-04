@@ -122,6 +122,7 @@ export interface Course {
     level: 'مبتدئ' | 'متوسط' | 'متقدم' | '';
     lessons: Lesson[];
     status: 'draft' | 'published';
+    createdBy?: string; // UID of the admin who created this course
     createdAt: Date;
 }
 

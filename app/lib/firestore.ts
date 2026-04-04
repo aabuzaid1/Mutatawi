@@ -14,7 +14,7 @@ import {
     Timestamp,
     increment,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { Opportunity, Application, UserProfile, Feedback, Course, CourseProgress } from '../types';
 
 // ===================== OPPORTUNITIES =====================
@@ -463,6 +463,7 @@ export async function getCourses(category?: string) {
 export async function createCourse(data: Omit<Course, 'id' | 'createdAt'>) {
     const docRef = await addDoc(collection(db, 'courses'), {
         ...data,
+        createdBy: auth.currentUser?.uid || '',
         createdAt: serverTimestamp(),
     });
     return docRef.id;
