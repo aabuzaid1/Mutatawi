@@ -2,7 +2,10 @@
  * Next.js Middleware — حماية المسارات الحساسة
  * 
  * يتحقق من وجود Firebase token cookie قبل السماح بالوصول
- * للمسارات المحمية (لوحات التحكم، الأدمن).
+ * للمسارات المحمية (الأدمن فقط).
+ * 
+ * ⚠️ مسارات لوحة تحكم المتطوع والمنظمة محمية من جهة العميل (AuthGuard)
+ * لأن Firebase SDK يحتفظ بالجلسة في IndexedDB ويقدر يعيدها حتى لو الكوكي انتهى.
  * 
  * ⚠️ هذا فحص أولي — التحقق الكامل من صحة الـ Token يتم في API routes
  */
@@ -37,8 +40,10 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        // فقط الأدمن يحتاج حماية على مستوى الـ middleware
+        // مسارات المتطوع والمنظمة محمية من AuthGuard (client-side)
+        // هذا يسمح لـ Firebase بإعادة الجلسة من IndexedDB قبل ما يتم التوجيه
         '/admin/:path*',
-        '/organization/:path*',
-        '/volunteer/:path*',
     ],
 };
+
