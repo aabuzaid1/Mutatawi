@@ -105,7 +105,9 @@ export interface Lesson {
     title: string;
     type: 'video' | 'activity';
     youtubeVideoId?: string;      // For video lessons
+    videoUrl?: string;            // For uploaded video lessons
     activityImageUrl?: string;    // For activity lessons (image URL)
+    activityText?: string;        // Text content for activity
     duration: string; // e.g. "12:34"
     order: number;
     section?: string;             // Section name (e.g., "Gmail", "Google Calendar")

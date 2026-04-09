@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
 
 /**
@@ -21,6 +21,36 @@ export async function uploadCourseThumbnail(file: File, courseId?: string): Prom
     // Get the download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
+}
+
+/**
+ * Upload a course video to Firebase Storage (supports large files up to 500MB)
+ */
+export async function uploadCourseVideo(file: File, courseId?: string, onProgress?: (progress: number) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const uniqueId = courseId || `temp_${Date.now()}`;
+        const ext = file.name.split('.').pop() || 'mp4';
+        const fileName = `course-videos/${uniqueId}_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, fileName);
+
+        const uploadTask = uploadBytesResumable(storageRef, file, {
+            contentType: file.type,
+        });
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                if (onProgress) onProgress(progress);
+            },
+            (error) => {
+                reject(error);
+            },
+            async () => {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(downloadURL);
+            }
+        );
+    });
 }
 
 /**

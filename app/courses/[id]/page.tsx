@@ -180,25 +180,54 @@ export default function CourseDetailPage() {
                         <div className="flex-1">
                             {/* Content Player */}
                             {currentLesson?.type === 'activity' ? (
-                                <div className="bg-white rounded-2xl overflow-hidden shadow-xl mb-6 border border-slate-100">
-                                    <div className="max-h-[70vh] overflow-y-auto">
-                                        <img
-                                            src={currentLesson.activityImageUrl}
-                                            alt={currentLesson.title}
-                                            className="w-full h-auto"
-                                        />
-                                    </div>
+                                <div className="bg-white rounded-2xl overflow-hidden shadow-xl mb-6 border border-slate-100 p-6 md:p-10 text-slate-800">
+                                    <h2 className="text-2xl font-black mb-6 text-primary-700 border-b border-slate-100 pb-4">
+                                        {currentLesson.title}
+                                    </h2>
+                                    
+                                    {currentLesson.activityText && (
+                                        <div className="mb-8 prose prose-slate max-w-none text-lg leading-relaxed whitespace-pre-wrap">
+                                            {currentLesson.activityText}
+                                        </div>
+                                    )}
+
+                                    {currentLesson.activityImageUrl && (
+                                        <div className="rounded-xl overflow-hidden border border-slate-100 shadow-sm bg-slate-50">
+                                            <img
+                                                src={currentLesson.activityImageUrl}
+                                                alt={currentLesson.title}
+                                                className="w-full h-auto object-contain max-h-[60vh] mx-auto"
+                                            />
+                                        </div>
+                                    )}
+                                    
+                                    {(!currentLesson.activityImageUrl && !currentLesson.activityText) && (
+                                        <div className="text-center py-10 text-slate-400">
+                                            <IoDocumentTextOutline size={48} className="mx-auto mb-3 opacity-50" />
+                                            <p>لا يوجد تفاصيل إضافية لهذا النشاط</p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="bg-black rounded-2xl overflow-hidden shadow-xl mb-6 aspect-video">
                                     {currentLesson ? (
-                                        <iframe
-                                            src={`https://www.youtube.com/embed/${currentLesson.youtubeVideoId}?rel=0`}
-                                            title={currentLesson.title}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                            className="w-full h-full"
-                                        />
+                                        currentLesson.videoUrl ? (
+                                            <video
+                                                src={currentLesson.videoUrl}
+                                                controls
+                                                controlsList="nodownload"
+                                                autoPlay
+                                                className="w-full h-full object-contain"
+                                            />
+                                        ) : (
+                                            <iframe
+                                                src={`https://www.youtube.com/embed/${currentLesson.youtubeVideoId}?rel=0`}
+                                                title={currentLesson.title}
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                                className="w-full h-full"
+                                            />
+                                        )
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-400">
                                             <p>لا يوجد فيديو</p>

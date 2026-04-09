@@ -76,10 +76,10 @@ export default function AIChatPanel({
             try {
                 const { collection, query, orderBy, getDocs } = await import('firebase/firestore');
                 const { db } = await import('@/app/lib/firebase');
-                
+
                 const currentConvMessagesRef = collection(db, 'aiConversations', conversationId!, 'messages');
                 const q = query(currentConvMessagesRef, orderBy('timestamp', 'asc'));
-                
+
                 const snapshot = await getDocs(q);
                 if (!isMounted) return;
 
@@ -287,11 +287,10 @@ export default function AIChatPanel({
                             className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                         >
                             {/* Avatar */}
-                            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-                                msg.role === 'user'
+                            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user'
                                     ? 'bg-primary-100'
                                     : 'bg-gradient-to-br from-violet-100 to-purple-200'
-                            }`}>
+                                }`}>
                                 {msg.role === 'user'
                                     ? <IoPersonCircleOutline size={20} className="text-primary-600" />
                                     : <IoSparklesOutline size={18} className="text-purple-600" />
@@ -300,11 +299,10 @@ export default function AIChatPanel({
 
                             {/* Content */}
                             <div className={`max-w-[80%] sm:max-w-[70%] ${msg.role === 'user' ? 'text-right' : ''}`}>
-                                <div className={`rounded-2xl px-4 py-3 ${
-                                    msg.role === 'user'
+                                <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user'
                                         ? 'bg-primary-600 text-white rounded-tr-md'
                                         : 'bg-white border border-slate-100 shadow-sm text-slate-800 rounded-tl-md'
-                                }`}>
+                                    }`}>
                                     {/* Image attachments */}
                                     {msg.attachments?.map((att, i) => (
                                         <img
@@ -461,11 +459,11 @@ export default function AIChatPanel({
                         placeholder={
                             activeMode === 'doc' ? 'اكتب موضوع المستند (مثال: الذكاء الاصطناعي)...'
                                 : activeMode === 'slides' ? 'اكتب موضوع العرض التقديمي...'
-                                : activeMode === 'explain' ? 'اكتب ما تريد شرحه...'
-                                : activeMode === 'quiz' ? 'اكتب موضوع الاختبار...'
-                                : activeMode === 'summarize' ? 'اكتب النص المراد تلخيصه...'
-                                : activeMode === 'flashcards' ? 'اكتب موضوع البطاقات...'
-                                : '...اكتب سؤالك هنا'
+                                    : activeMode === 'explain' ? 'اكتب ما تريد شرحه...'
+                                        : activeMode === 'quiz' ? 'اكتب موضوع الاختبار...'
+                                            : activeMode === 'summarize' ? 'اكتب النص المراد تلخيصه...'
+                                                : activeMode === 'flashcards' ? 'اكتب موضوع البطاقات...'
+                                                    : '...اكتب سؤالك هنا'
                         }
                         disabled={isLoading}
                         rows={1}

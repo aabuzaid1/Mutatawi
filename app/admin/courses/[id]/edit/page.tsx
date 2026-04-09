@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { getCourse, updateCourseData } from '@/app/lib/firestore';
-import { uploadCourseThumbnail, compressImage } from '@/app/lib/storage';
+import { uploadCourseThumbnail, compressImage, uploadCourseVideo } from '@/app/lib/storage';
 import { Lesson, CourseCategory, Course } from '@/app/types';
 import Navbar from '@/app/components/layout/Navbar';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
@@ -47,8 +47,14 @@ const levels = [
 interface LessonForm {
     title: string;
     type: 'video' | 'activity';
+    videoSource: 'youtube' | 'upload';
     youtubeVideoId: string;
+    videoUrl: string;
+    videoFile?: File | null;
+    activityImageSource: 'url' | 'upload';
+    activityImageFile?: File | null;
     activityImageUrl: string;
+    activityText: string;
     duration: string;
     section: string;
 }
@@ -134,8 +140,12 @@ export default function EditCoursePage() {
             setLessons(course.lessons?.map(l => ({
                 title: l.title,
                 type: l.type,
+                videoSource: l.videoUrl ? 'upload' : 'youtube',
                 youtubeVideoId: l.youtubeVideoId || '',
+                videoUrl: l.videoUrl || '',
+                activityImageSource: 'upload',
                 activityImageUrl: l.activityImageUrl || '',
+                activityText: l.activityText || '',
                 duration: l.duration || '',
                 section: l.section || '',
             })) || []);
@@ -149,7 +159,7 @@ export default function EditCoursePage() {
 
     const addLesson = () => {
         const lastSection = lessons.length > 0 ? lessons[lessons.length - 1].section : '';
-        setLessons([...lessons, { title: '', type: 'video', youtubeVideoId: '', activityImageUrl: '', duration: '', section: lastSection }]);
+        setLessons([...lessons, { title: '', type: 'video', videoSource: 'youtube', youtubeVideoId: '', videoUrl: '', activityImageSource: 'upload', activityImageUrl: '', activityText: '', duration: '', section: lastSection }]);
     };
 
     const removeLesson = (index: number) => {
@@ -195,10 +205,45 @@ export default function EditCoursePage() {
                 setUploadingImage(false);
             }
 
+            // Upload videos if needed
+            for (let i = 0; i < validLessons.length; i++) {
+                const l = validLessons[i];
+                if (l.type === 'video' && l.videoSource === 'upload' && l.videoFile) {
+                    toast.loading(`جاري رفع فيديو درس ${i + 1}...`, { id: 'uploading-video' });
+                    try {
+                        const url = await uploadCourseVideo(l.videoFile, courseId);
+                        l.videoUrl = url;
+                    } catch (err) {
+                        toast.dismiss('uploading-video');
+                        toast.error(`فشل رفع فيديو درس ${i + 1}`);
+                        setSaving(false);
+                        return;
+                    }
+                }
+
+                if (l.type === 'activity' && l.activityImageSource === 'upload' && l.activityImageFile) {
+                    toast.loading(`جاري رفع صورة نشاط درس ${i + 1}...`, { id: 'uploading-image' });
+                    try {
+                        const compressed = await compressImage(l.activityImageFile);
+                        const url = await uploadCourseThumbnail(compressed);
+                        l.activityImageUrl = url;
+                    } catch (err) {
+                        toast.dismiss('uploading-image');
+                        toast.error(`فشل رفع صورة نشاط درس ${i + 1}`);
+                        setSaving(false);
+                        return;
+                    }
+                }
+            }
+            toast.dismiss('uploading-video');
+            toast.dismiss('uploading-image');
+
             const courseLessons: Lesson[] = validLessons.map((l, i) => ({
                 title: l.title,
                 type: l.type,
-                ...(l.type === 'video' ? { youtubeVideoId: l.youtubeVideoId } : { activityImageUrl: l.activityImageUrl }),
+                ...(l.type === 'video' 
+                      ? (l.videoSource === 'youtube' ? { youtubeVideoId: l.youtubeVideoId } : { videoUrl: l.videoUrl }) 
+                      : { activityImageUrl: l.activityImageUrl, activityText: l.activityText }),
                 duration: l.duration || '0:00',
                 order: i + 1,
                 section: l.section || undefined,
@@ -477,24 +522,128 @@ export default function EditCoursePage() {
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            {lesson.type === 'video' && (
+                                                <div className="sm:col-span-3 flex bg-slate-100 p-1 rounded-lg mb-1">
+                                                    <button
+                                                        onClick={() => updateLesson(index, 'videoSource', 'youtube')}
+                                                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${lesson.videoSource === 'youtube' ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        YouTube ID
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateLesson(index, 'videoSource', 'upload')}
+                                                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${lesson.videoSource === 'upload' ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        رفع فيديو
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             {lesson.type === 'video' ? (
-                                                <input
-                                                    type="text"
-                                                    value={lesson.youtubeVideoId}
-                                                    onChange={(e) => updateLesson(index, 'youtubeVideoId', e.target.value)}
-                                                    placeholder="YouTube Video ID"
-                                                    className="sm:col-span-1 w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm"
-                                                    dir="ltr"
-                                                />
-                                            ) : (
-                                                <input
-                                                    type="text"
-                                                    value={lesson.activityImageUrl}
-                                                    onChange={(e) => updateLesson(index, 'activityImageUrl', e.target.value)}
-                                                    placeholder="رابط صورة النشاط"
-                                                    className="sm:col-span-1 w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm"
-                                                    dir="ltr"
-                                                />
+                                                lesson.videoSource === 'youtube' ? (
+                                                    <input
+                                                        type="text"
+                                                        value={lesson.youtubeVideoId}
+                                                        onChange={(e) => updateLesson(index, 'youtubeVideoId', e.target.value)}
+                                                        placeholder="YouTube Video ID"
+                                                        className="sm:col-span-1 w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                                                        dir="ltr"
+                                                    />
+                                                ) : (
+                                                    <div className="sm:col-span-1 flex flex-col gap-1">
+                                                        <input
+                                                            type="file"
+                                                            accept="video/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file && file.size > 500 * 1024 * 1024) {
+                                                                    toast.error('حجم الفيديو كبير جداً (الحد الأقصى 500MB)');
+                                                                    e.target.value = '';
+                                                                    return;
+                                                                }
+                                                                if (file) {
+                                                                    const updated = [...lessons];
+                                                                    updated[index] = { ...updated[index], videoFile: file, videoUrl: '' };
+                                                                    setLessons(updated);
+                                                                }
+                                                            }}
+                                                            className="w-full text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                                        />
+                                                        {(lesson.videoFile || lesson.videoUrl) && (
+                                                            <span className="text-xs text-green-600 font-bold px-1 mt-1 block">
+                                                                {lesson.videoFile ? 'تم اختيار الفيديو' : 'يوجد فيديو جاهز'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )
+                                            ) : null}
+                                            
+                                            {lesson.type === 'activity' && (
+                                                <div className="sm:col-span-3 space-y-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-600 mb-1.5">نص النشاط / التعليمات</label>
+                                                        <textarea
+                                                            value={lesson.activityText || ''}
+                                                            onChange={(e) => updateLesson(index, 'activityText', e.target.value)}
+                                                            placeholder="اكتب تعليمات أو الكلمات الخاصة بالنشاط هنا (اختياري)..."
+                                                            rows={3}
+                                                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm resize-y"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-600 mb-1.5">صورة النشاط (اختياري)</label>
+                                                        <div className="flex bg-slate-100 p-1 rounded-lg mb-2 w-fit">
+                                                            <button
+                                                                onClick={() => updateLesson(index, 'activityImageSource', 'upload')}
+                                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${lesson.activityImageSource === 'upload' ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                رفع صورة
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateLesson(index, 'activityImageSource', 'url')}
+                                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${lesson.activityImageSource === 'url' ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                رابط صورة
+                                                            </button>
+                                                        </div>
+                                                        {lesson.activityImageSource === 'url' ? (
+                                                            <input
+                                                                type="text"
+                                                                value={lesson.activityImageUrl}
+                                                                onChange={(e) => updateLesson(index, 'activityImageUrl', e.target.value)}
+                                                                placeholder="رابط صورة النشاط (مثال: https://...)"
+                                                                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm"
+                                                                dir="ltr"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex flex-col gap-1">
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (file) {
+                                                                            if (file.size > 10 * 1024 * 1024) {
+                                                                                toast.error('حجم الصورة كبير جداً (الحد الأقصى 10MB)');
+                                                                                e.target.value = '';
+                                                                                return;
+                                                                            }
+                                                                            const updated = [...lessons];
+                                                                            updated[index] = { ...updated[index], activityImageFile: file, activityImageUrl: '' };
+                                                                            setLessons(updated);
+                                                                        }
+                                                                    }}
+                                                                    className="w-full text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                                                />
+                                                                {(lesson.activityImageFile || lesson.activityImageUrl) && (
+                                                                    <span className="text-xs text-green-600 font-bold px-1 mt-1 block">
+                                                                        {lesson.activityImageFile ? 'تم اختيار الصورة' : 'يوجد صورة مسجلة'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             )}
                                             <input
                                                 type="text"
