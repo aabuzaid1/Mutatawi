@@ -263,7 +263,7 @@ async function callGeminiAPI(
 
     const jsonTypes: StudyMode[] = ['doc', 'slides', 'sheet', 'quiz', 'flashcards'];
     const isJsonOutput = jsonTypes.includes(type);
-    const realMaxTokens = isJsonOutput ? 2000 : internalToRealMax(MAX_TOKENS_PER_REQUEST);
+    const realMaxTokens = 8000; // Allow maximum real tokens for extremely long answers
 
     const parts: any[] = [];
     if (attachments && attachments.length > 0) {
@@ -370,9 +370,8 @@ async function callKimiAPI(
     const jsonTypes: StudyMode[] = ['doc', 'slides', 'sheet', 'quiz', 'flashcards'];
     const isJsonOutput = jsonTypes.includes(type);
 
-    // Structured JSON outputs (doc, slides, etc.) need much more real tokens
-    // than the internal token budget implies, to avoid truncated JSON
-    const realMaxTokens = isJsonOutput ? 2000 : internalToRealMax(MAX_TOKENS_PER_REQUEST);
+    // Allow maximum real tokens for extremely long text generation or JSON
+    const realMaxTokens = 8000;
 
     const body: any = {
         model,
