@@ -202,7 +202,7 @@ export default function AIChatPanel({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (isLoading || !input.trim()) return;
+        if (isLoading || (!input.trim() && attachments.length === 0)) return;
         sendMessage(input, activeMode || 'chat', attachments.length > 0 ? attachments : undefined);
     };
 

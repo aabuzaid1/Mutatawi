@@ -519,15 +519,21 @@ export async function POST(request: NextRequest) {
             conversationId?: string;
         };
 
-        if (!type || !message?.trim()) {
-            return NextResponse.json({ error: 'الرسالة مطلوبة' }, { status: 400 });
+        let finalMessage = message?.trim() || '';
+
+        if (!type || (!finalMessage && (!attachments || attachments.length === 0))) {
+            return NextResponse.json({ error: 'الرسالة أو الصورة مطلوبة' }, { status: 400 });
+        }
+
+        if (!finalMessage && attachments && attachments.length > 0) {
+            finalMessage = 'يرجى تحليل هذه الصورة وشرح محتواها بالتفصيل.';
         }
 
         // 3. Check if super admin (unlimited tokens)
         const superAdmin = await isSuperAdmin(auth.email);
 
-        // 4. Estimate cost
-        const estimatedCost = estimateCostServer(message.length, type);
+        // 4. Estimate cost (approx 500 chars for each image)
+        const estimatedCost = estimateCostServer(finalMessage.length + ((attachments?.length || 0) * 500), type);
 
         // 5. Rate limit & token check (skip for super admins)
         let check = { allowed: true, balance: 999999 };
@@ -546,7 +552,7 @@ export async function POST(request: NextRequest) {
         // 5. Cache check (only for structured outputs, not chat)
         const jsonTypes: StudyMode[] = ['doc', 'slides', 'sheet', 'quiz', 'flashcards'];
         const isStructured = jsonTypes.includes(type);
-        const cacheKey = getCacheKey(type, message);
+        const cacheKey = getCacheKey(type, finalMessage);
 
         if (isStructured) {
             const cached = getCached(cacheKey);
@@ -554,7 +560,7 @@ export async function POST(request: NextRequest) {
                 // Deduct minimal tokens for cached response
                 const cacheTokenCost = 50;
                 await serverDeductTokens(auth.uid, cacheTokenCost, `${type} (مخزن مؤقتاً)`);
-                const convId = await storeMessage(auth.uid, conversationId, message, JSON.stringify(cached), type, cacheTokenCost, cached);
+                const convId = await storeMessage(auth.uid, conversationId, finalMessage, JSON.stringify(cached), type, cacheTokenCost, cached);
 
                 return NextResponse.json({
                     content: JSON.stringify(cached),
@@ -575,13 +581,13 @@ export async function POST(request: NextRequest) {
 
         let result;
         if (isGemini) {
-            result = await callGeminiAPI(systemPrompt, message, type, attachments);
+            result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
         } else {
             try {
-                result = await callKimiAPI(systemPrompt, message, type, attachments);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
             } catch (kimiErr: any) {
                 console.warn('Kimi API failed, falling back to Gemini:', kimiErr.message);
-                result = await callGeminiAPI(systemPrompt, message, type, attachments);
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
             }
         }
         
@@ -598,16 +604,16 @@ export async function POST(request: NextRequest) {
                 const stricterPrompt = systemPrompt + "\n\nCRITICAL: You failed to return valid JSON previously. You MUST return ONLY valid JSON and NOTHING ELSE. No text before or after. Do NOT use unescaped newlines inside strings. Use \\\\n for line breaks.";
                 
                 let retryResult;
-                if (isGemini) {
-                    retryResult = await callGeminiAPI(stricterPrompt, message, type, attachments);
-                } else {
-                    try {
-                        retryResult = await callKimiAPI(stricterPrompt, message, type, attachments);
-                    } catch (kimiErr: any) {
-                        console.warn('Kimi API failed during retry, falling back to Gemini:', kimiErr.message);
-                        retryResult = await callGeminiAPI(stricterPrompt, message, type, attachments);
-                    }
-                }
+        if (isGemini) {
+            retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+        } else {
+            try {
+                retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
+            } catch (kimiErr: any) {
+                console.warn('Kimi API failed during retry, falling back to Gemini:', kimiErr.message);
+                retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+            }
+        }
                 
                 result.content = retryResult.content;
                 totalTokensUsed += retryResult.tokensUsed;
@@ -630,12 +636,12 @@ export async function POST(request: NextRequest) {
         // 8. Deduct tokens (skip for super admins)
         const actualCost = Math.max(totalTokensUsed, 50); // minimum 50 tokens
         if (!superAdmin) {
-            await serverDeductTokens(auth.uid, actualCost, `${type}: ${message.substring(0, 50)}`);
+            await serverDeductTokens(auth.uid, actualCost, `${type}: ${finalMessage.substring(0, 50)}`);
         }
 
         // 9. Store conversation
         const convId = await storeMessage(
-            auth.uid, conversationId, message, result.content,
+            auth.uid, conversationId, message || 'صورة مرفقة', result.content,
             type, actualCost, structuredData
         );
 
