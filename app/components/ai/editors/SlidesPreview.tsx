@@ -12,6 +12,10 @@ import {
 import { AISlidesOutput } from '@/app/types';
 import { saveAs } from 'file-saver';
 
+function isArabic(text: string): boolean {
+    return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text || '');
+}
+
 interface SlidesPreviewProps {
     data: AISlidesOutput;
     onClose: () => void;
@@ -54,7 +58,7 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
         titleSlide.addText(editedData.title, {
             x: 0.5, y: 1.5, w: 9, h: 2,
             fontSize: 36, color: 'FFFFFF', bold: true,
-            align: 'center', rtlMode: true,
+            align: 'center', rtlMode: isArabic(editedData.title),
             fontFace: 'Arial',
         });
 
@@ -64,10 +68,11 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
             sl.background = { color: 'FFFFFF' };
 
             // Slide title
+            const titleIsAr = isArabic(s.title);
             sl.addText(s.title, {
                 x: 0.5, y: 0.3, w: 9, h: 1,
                 fontSize: 28, color: '1a56db', bold: true,
-                align: 'right', rtlMode: true,
+                align: titleIsAr ? 'right' : 'left', rtlMode: titleIsAr,
                 fontFace: 'Arial',
             });
 
@@ -77,17 +82,57 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
                 fill: { color: '1a56db' },
             });
 
-            // Points
-            const bulletText = s.points.map(p => ({
-                text: p,
-                options: { fontSize: 18, color: '333333', bullet: true, rtlMode: true, fontFace: 'Arial' },
-            }));
+            if (s.imageBase64 || s.imageUrl) {
+                // Handle both base64 and URL images
+                if (s.imageBase64) {
+                    sl.addImage({
+                        data: `image/jpeg;base64,${s.imageBase64}`,
+                        x: 0.5,
+                        y: 1.5,
+                        w: 4,
+                        h: 3,
+                    });
+                } else if (s.imageUrl) {
+                    // For URLs, we need to fetch and convert to base64 first
+                    try {
+                        const response = await fetch(s.imageUrl);
+                        const blob = await response.blob();
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const base64 = Buffer.from(arrayBuffer).toString('base64');
+                        sl.addImage({
+                            data: `image/jpeg;base64,${base64}`,
+                            x: 0.5,
+                            y: 1.5,
+                            w: 4,
+                            h: 3,
+                        });
+                    } catch (err) {
+                        console.error('Failed to load slide image:', err);
+                    }
+                }
+                
+                const bulletText = s.points.map(p => ({
+                    text: p,
+                    options: { fontSize: 18, color: '333333', bullet: true, rtlMode: isArabic(p), fontFace: 'Arial' },
+                }));
 
-            sl.addText(bulletText, {
-                x: 0.5, y: 1.6, w: 9, h: 3.5,
-                align: 'right',
-                lineSpacingMultiple: 1.5,
-            });
+                sl.addText(bulletText, {
+                    x: 5, y: 1.5, w: 4.5, h: 3,
+                    align: isArabic(s.points[0]) ? 'right' : 'left',
+                    lineSpacingMultiple: 1.5,
+                });
+            } else {
+                const bulletText = s.points.map(p => ({
+                    text: p,
+                    options: { fontSize: 18, color: '333333', bullet: true, rtlMode: isArabic(p), fontFace: 'Arial' },
+                }));
+
+                sl.addText(bulletText, {
+                    x: 0.5, y: 1.6, w: 9, h: 3.5,
+                    align: isArabic(s.points[0]) ? 'right' : 'left',
+                    lineSpacingMultiple: 1.5,
+                });
+            }
         }
 
         const blob = await pptx.write({ outputType: 'blob' }) as Blob;
@@ -147,8 +192,8 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
                                     <input
                                         value={slide.title}
                                         onChange={(e) => updateSlideTitle(e.target.value)}
-                                        className="text-lg sm:text-2xl font-black text-primary-700 bg-transparent border-b-2 border-primary-200 pb-2 mb-4 outline-none w-full text-right"
-                                        dir="rtl"
+                                        className="text-lg sm:text-2xl font-black text-primary-700 bg-transparent border-b-2 border-primary-200 pb-2 mb-4 outline-none w-full text-start"
+                                        dir="auto"
                                     />
                                     <div className="space-y-2">
                                         {slide.points.map((point, i) => (
@@ -157,8 +202,8 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
                                                 <input
                                                     value={point}
                                                     onChange={(e) => updateSlidePoint(i, e.target.value)}
-                                                    className="flex-1 text-sm sm:text-base text-slate-700 bg-transparent border-b border-slate-200 pb-1 outline-none text-right"
-                                                    dir="rtl"
+                                                    className="flex-1 text-sm sm:text-base text-slate-700 bg-transparent border-b border-slate-200 pb-1 outline-none text-start"
+                                                    dir="auto"
                                                 />
                                             </div>
                                         ))}
@@ -166,23 +211,35 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
                                 </>
                             ) : (
                                 <>
-                                    <h3 className="text-lg sm:text-2xl font-black text-primary-700 mb-4 pb-2 border-b-2 border-primary-100 text-right">
+                                    <h3 dir="auto" className="text-lg sm:text-2xl font-black text-primary-700 mb-4 pb-2 border-b-2 border-primary-100 text-start">
                                         {slide.title}
                                     </h3>
-                                    <ul className="space-y-2.5 text-right">
-                                        {slide.points.map((point, i) => (
-                                            <motion.li
-                                                key={i}
-                                                initial={{ opacity: 0, x: 10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: i * 0.1 }}
-                                                className="flex items-start gap-2 text-sm sm:text-base text-slate-700"
-                                            >
-                                                <span className="text-primary-500 mt-0.5 flex-shrink-0">●</span>
-                                                <span className="leading-relaxed">{point}</span>
-                                            </motion.li>
-                                        ))}
-                                    </ul>
+                                    <div className={`flex flex-col-reverse sm:flex-row gap-4 ${slide.imageBase64 || slide.imageUrl ? 'items-start' : ''}`}>
+                                        {(slide.imageBase64 || slide.imageUrl) && (
+                                            <div className="w-full sm:w-1/3">
+                                                <img
+                                                    src={slide.imageBase64 ? `data:image/jpeg;base64,${slide.imageBase64}` : slide.imageUrl}
+                                                    className="rounded-lg shadow w-full"
+                                                    alt="Generated Illustration"
+                                                />
+                                            </div>
+                                        )}
+                                        <ul className="space-y-2.5 text-start flex-1 w-full">
+                                            {slide.points.map((point, i) => (
+                                                <motion.li
+                                                    key={i}
+                                                    initial={{ opacity: 0, x: 10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className="flex items-start gap-2 text-sm sm:text-base text-slate-700"
+                                                    dir="auto"
+                                                >
+                                                    <span className="text-primary-500 mt-0.5 flex-shrink-0">●</span>
+                                                    <span className="leading-relaxed">{point}</span>
+                                                </motion.li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </>
                             )}
                         </motion.div>

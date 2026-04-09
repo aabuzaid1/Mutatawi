@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import {
     IoClose,
     IoDownloadOutline,
@@ -30,21 +31,47 @@ import {
 } from 'react-icons/lu';
 import { AIDocOutput } from '@/app/types';
 import { saveAs } from 'file-saver';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun } from 'docx';
+
+function base64ToUint8Array(base64: string) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
+
+async function loadImageFromUrl(url: string): Promise<Uint8Array> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+}
 
 interface DocsEditorModalProps {
     data: AIDocOutput;
     onClose: () => void;
 }
 
+function isArabic(text: string): boolean {
+    return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text || '');
+}
+
 function docToHtml(doc: AIDocOutput): string {
-    let html = `<h1>${doc.title}</h1>`;
+    let html = `<h1 dir="auto">${doc.title}</h1>`;
     for (const section of doc.sections) {
-        html += `<h2>${section.heading}</h2>`;
+        html += `<h2 dir="auto">${section.heading}</h2>`;
+        if (section.imageBase64) {
+            html += `<img src="data:image/jpeg;base64,${section.imageBase64}" alt="Generated Image" />`;
+        } else if (section.imageUrl) {
+            html += `<img src="${section.imageUrl}" alt="Generated Image" />`;
+        }
         // Split content by newlines into paragraphs
         const paragraphs = section.content.split('\n').filter(p => p.trim());
         for (const p of paragraphs) {
-            html += `<p>${p}</p>`;
+            html += `<p dir="auto">${p}</p>`;
         }
     }
     return html;
@@ -58,12 +85,13 @@ export default function DocsEditorModal({ data, onClose }: DocsEditorModalProps)
             Underline,
             TextAlign.configure({ types: ['heading', 'paragraph'] }),
             Link.configure({ openOnClick: false }),
+            Image,
         ],
         content: docToHtml(data),
         editorProps: {
             attributes: {
-                class: 'prose prose-sm sm:prose max-w-none focus:outline-none min-h-[60vh] px-6 sm:px-10 py-6 text-right',
-                dir: 'rtl',
+                class: 'prose prose-sm sm:prose max-w-none focus:outline-none min-h-[60vh] px-6 sm:px-10 py-6 text-start',
+                dir: 'auto',
             },
         },
     });
@@ -75,8 +103,39 @@ export default function DocsEditorModal({ data, onClose }: DocsEditorModalProps)
         const json = editor.getJSON();
         const paragraphs: Paragraph[] = [];
 
-        function processNode(node: any) {
-            if (node.type === 'heading') {
+        async function processNode(node: any) {
+            if (node.type === 'image') {
+                const src = node.attrs?.src;
+                if (src) {
+                    try {
+                        let imageBuffer: Uint8Array;
+                        let typeStr = 'jpeg';
+                        if (src.startsWith('data:image')) {
+                            const base64Part = src.split(',')[1];
+                            imageBuffer = base64ToUint8Array(base64Part);
+                            if (src.includes('png')) typeStr = 'png';
+                        } else {
+                            imageBuffer = await loadImageFromUrl(src);
+                            if (src.endsWith('png')) typeStr = 'png';
+                        }
+                        paragraphs.push(new Paragraph({
+                            children: [
+                                new ImageRun({
+                                    data: imageBuffer,
+                                    transformation: {
+                                        width: 400,
+                                        height: 250,
+                                    },
+                                    type: typeStr as any,
+                                })
+                            ],
+                            alignment: AlignmentType.CENTER,
+                        }));
+                    } catch (err) {
+                        console.error('Failed to load image', err);
+                    }
+                }
+            } else if (node.type === 'heading') {
                 const text = node.content?.map((c: any) => c.text || '').join('') || '';
                 const level = node.attrs?.level === 1
                     ? HeadingLevel.HEADING_1
@@ -86,14 +145,16 @@ export default function DocsEditorModal({ data, onClose }: DocsEditorModalProps)
                 paragraphs.push(new Paragraph({
                     text,
                     heading: level,
-                    bidirectional: true,
-                    alignment: AlignmentType.RIGHT,
+                    bidirectional: isArabic(text),
+                    alignment: isArabic(text) ? AlignmentType.RIGHT : AlignmentType.LEFT,
                 }));
             } else if (node.type === 'paragraph') {
                 const runs: TextRun[] = [];
+                let fullText = '';
                 if (node.content) {
                     for (const child of node.content) {
                         const marks = child.marks || [];
+                        fullText += child.text || '';
                         runs.push(new TextRun({
                             text: child.text || '',
                             bold: marks.some((m: any) => m.type === 'bold'),
@@ -101,28 +162,32 @@ export default function DocsEditorModal({ data, onClose }: DocsEditorModalProps)
                             underline: marks.some((m: any) => m.type === 'underline')
                                 ? {} : undefined,
                             strike: marks.some((m: any) => m.type === 'strike'),
-                            rightToLeft: true,
+                            rightToLeft: isArabic(child.text || ''),
                         }));
                     }
                 }
                 paragraphs.push(new Paragraph({
                     children: runs.length > 0 ? runs : [new TextRun('')],
-                    bidirectional: true,
-                    alignment: AlignmentType.RIGHT,
+                    bidirectional: isArabic(fullText),
+                    alignment: isArabic(fullText) ? AlignmentType.RIGHT : AlignmentType.LEFT,
                 }));
             } else if (node.type === 'bulletList' || node.type === 'orderedList') {
                 node.content?.forEach((item: any) => {
                     const text = item.content?.[0]?.content?.map((c: any) => c.text || '').join('') || '';
                     paragraphs.push(new Paragraph({
                         text: `• ${text}`,
-                        bidirectional: true,
-                        alignment: AlignmentType.RIGHT,
+                        bidirectional: isArabic(text),
+                        alignment: isArabic(text) ? AlignmentType.RIGHT : AlignmentType.LEFT,
                     }));
                 });
             }
         }
 
-        json.content?.forEach(processNode);
+        if (json.content) {
+            for (const node of json.content) {
+                await processNode(node);
+            }
+        }
 
         const doc = new Document({
             sections: [{
@@ -143,15 +208,15 @@ export default function DocsEditorModal({ data, onClose }: DocsEditorModalProps)
         const htmlContent = editor.getHTML();
         
         printWindow.document.write(`
-            <html dir="rtl">
+            <html dir="auto">
             <head>
                 <title>${data.title || 'مستند'}</title>
                 <style>
                     body {
                         font-family: Arial, sans-serif;
                         padding: 40px;
-                        direction: rtl;
-                        text-align: right;
+                        direction: auto;
+                        text-align: start;
                         color: #000;
                     }
                     h1 { font-size: 24px; margin-bottom: 20px; }

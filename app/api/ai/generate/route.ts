@@ -15,6 +15,7 @@ import {
     MAX_TOKENS_PER_REQUEST,
     MAX_DAILY_REQUESTS,
 } from '@/app/lib/aiTokens';
+import { generateImage } from '@/app/lib/generateImage';
 
 // ── System Prompts ─────────────────────────────
 // IMPORTANT: Kimi/Moonshot is a Chinese model - must explicitly enforce Arabic output
@@ -36,24 +37,48 @@ ${LANG_RULE}
     summarize: `لخّص النص أو الموضوع التالي بنقاط واضحة ومختصرة ومرتبة. ركّز على الأفكار الرئيسية.
 ${LANG_RULE}`,
 
-    doc: `Generate a structured document.
-Rules:
-- Clear sections
-- Academic tone
-${LANG_RULE}
-IMPORTANT: Do NOT use actual line breaks inside JSON strings. Use \\n for newlines. Ensure quotes are strictly escaped.
+    doc: `
 Return ONLY valid JSON:
-{ "title": "", "sections": [{ "heading": "", "content": "" }] }`,
+{
+  "title": "",
+  "sections": [
+    {
+      "heading": "",
+      "content": "",
+      "imagePrompt": ""
+    }
+  ]
+}
 
-    slides: `Generate a professional presentation.
 Rules:
+- ALWAYS include imagePrompt
+- imagePrompt MUST be in English
+- imagePrompt must describe a clean educational illustration
+- Keep content in Arabic
+- Max 6 sections
+- No extra text outside JSON
+`,
+
+    slides: `
+Return ONLY valid JSON:
+{
+  "title": "",
+  "slides": [
+    {
+      "title": "",
+      "points": [],
+      "imagePrompt": ""
+    }
+  ]
+}
+
+Rules:
+- ALWAYS include imagePrompt
+- imagePrompt MUST be in English
+- Each slide: 3-5 points
 - Max 8 slides
-- Each slide has 3-5 bullet points
-- Keep text concise
-${LANG_RULE}
-IMPORTANT: Do NOT use actual line breaks inside JSON strings. Use \\n for newlines.
-Return ONLY valid JSON with this format:
-{ "title": "", "slides": [{ "title": "", "points": [] }] }`,
+- No extra text
+`,
 
     sheet: `أنت مولّد جداول بيانات.
 ${LANG_RULE}
@@ -581,7 +606,12 @@ export async function POST(request: NextRequest) {
 
         let result;
         if (isGemini) {
-            result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
+            try {
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
+            } catch (geminiErr: any) {
+                console.warn('Gemini API failed, falling back to Kimi:', geminErr.message);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
+            }
         } else {
             try {
                 result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
@@ -604,16 +634,21 @@ export async function POST(request: NextRequest) {
                 const stricterPrompt = systemPrompt + "\n\nCRITICAL: You failed to return valid JSON previously. You MUST return ONLY valid JSON and NOTHING ELSE. No text before or after. Do NOT use unescaped newlines inside strings. Use \\\\n for line breaks.";
                 
                 let retryResult;
-        if (isGemini) {
-            retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
-        } else {
-            try {
-                retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
-            } catch (kimiErr: any) {
-                console.warn('Kimi API failed during retry, falling back to Gemini:', kimiErr.message);
-                retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
-            }
-        }
+                if (isGemini) {
+                    try {
+                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+                    } catch (geminiErr: any) {
+                        console.warn('Gemini retry failed, falling back to Kimi:', geminiErr.message);
+                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
+                    }
+                } else {
+                    try {
+                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
+                    } catch (kimiErr: any) {
+                        console.warn('Kimi API failed during retry, falling back to Gemini:', kimiErr.message);
+                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+                    }
+                }
                 
                 result.content = retryResult.content;
                 totalTokensUsed += retryResult.tokensUsed;
@@ -626,6 +661,38 @@ export async function POST(request: NextRequest) {
                     structuredData.slides = structuredData.slides.slice(0, 8); // Max 8 slides
                 } else if (type === 'doc' && Array.isArray(structuredData.sections)) {
                     structuredData.sections = structuredData.sections.slice(0, 6); // Max 6 sections
+                }
+
+                // Inject images from nanobanana API (returns URL)
+                const MAX_IMAGES = 3;
+                if (type === 'doc' && Array.isArray(structuredData.sections)) {
+                    const sectionsWithImages = structuredData.sections.filter((s: any) => s.imagePrompt).slice(0, MAX_IMAGES);
+                    await Promise.all(
+                        sectionsWithImages.map(async (section: any) => {
+                            const generatedImg = await generateImage(section.imagePrompt);
+                            if (generatedImg) {
+                                if (generatedImg.startsWith('http')) {
+                                    section.imageUrl = generatedImg;
+                                } else {
+                                    section.imageBase64 = generatedImg;
+                                }
+                            }
+                        })
+                    );
+                } else if (type === 'slides' && Array.isArray(structuredData.slides)) {
+                    const slidesWithImages = structuredData.slides.filter((s: any) => s.imagePrompt).slice(0, MAX_IMAGES);
+                    await Promise.all(
+                        slidesWithImages.map(async (slide: any) => {
+                            const generatedImg = await generateImage(slide.imagePrompt);
+                            if (generatedImg) {
+                                if (generatedImg.startsWith('http')) {
+                                    slide.imageUrl = generatedImg;
+                                } else {
+                                    slide.imageBase64 = generatedImg;
+                                }
+                            }
+                        })
+                    );
                 }
                 setCache(cacheKey, structuredData);
             } else {

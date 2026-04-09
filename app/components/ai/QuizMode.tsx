@@ -98,7 +98,7 @@ export default function QuizMode({ data, onClose }: QuizModeProps) {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                 >
-                    <p className="font-bold text-slate-800 text-sm mb-3 leading-relaxed">{question.question}</p>
+                    <p className="font-bold text-slate-800 text-sm mb-3 leading-relaxed text-start" dir="auto">{question.question}</p>
 
                     {/* Options */}
                     <div className="space-y-2 mb-3">
@@ -119,7 +119,8 @@ export default function QuizMode({ data, onClose }: QuizModeProps) {
                                     key={i}
                                     onClick={() => handleSelect(i)}
                                     disabled={showAnswer}
-                                    className={`w-full text-right px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${style}`}
+                                    className={`w-full text-start px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${style}`}
+                                    dir="auto"
                                     whileTap={!showAnswer ? { scale: 0.98 } : {}}
                                 >
                                     <span className="flex items-center gap-2">
@@ -128,10 +129,10 @@ export default function QuizMode({ data, onClose }: QuizModeProps) {
                                         </span>
                                         {opt}
                                         {showAnswer && i === question.correctIndex && (
-                                            <IoCheckmarkCircle className="text-emerald-500 mr-auto" size={18} />
+                                            <IoCheckmarkCircle className="text-emerald-500 mx-2 flex-shrink-0" size={18} />
                                         )}
                                         {showAnswer && i === selectedOption && i !== question.correctIndex && (
-                                            <IoCloseCircle className="text-red-500 mr-auto" size={18} />
+                                            <IoCloseCircle className="text-red-500 mx-2 flex-shrink-0" size={18} />
                                         )}
                                     </span>
                                 </motion.button>
@@ -146,7 +147,7 @@ export default function QuizMode({ data, onClose }: QuizModeProps) {
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3"
                         >
-                            <p className="text-xs text-blue-800 leading-relaxed">💡 {question.explanation}</p>
+                            <p className="text-xs text-blue-800 leading-relaxed text-start" dir="auto">💡 {question.explanation}</p>
                         </motion.div>
                     )}
 

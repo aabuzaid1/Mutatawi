@@ -203,6 +203,9 @@ export interface AIDocOutput {
     sections: Array<{
         heading: string;
         content: string;
+        imagePrompt: string;
+        imageBase64?: string;
+        imageUrl?: string;
     }>;
 }
 
@@ -212,6 +215,9 @@ export interface AISlidesOutput {
         title: string;
         points: string[];
         notes?: string;
+        imagePrompt: string;
+        imageBase64?: string;
+        imageUrl?: string;
     }>;
 }
 
