@@ -15,11 +15,12 @@ import {
     IoAnalyticsOutline,
     IoGlobeOutline,
     IoSettingsOutline,
+    IoSparklesOutline,
 } from 'react-icons/io5';
 import { useAuth } from '@/app/hooks/useAuth';
 import { signOut } from '@/app/lib/auth';
 import { cn } from '@/app/lib/utils';
-import { loadAdminEmails, isAdmin } from '@/app/lib/adminConfig';
+import { loadAdminEmails, isAdmin, isSuperAdmin } from '@/app/lib/adminConfig';
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -27,14 +28,16 @@ export default function Sidebar() {
     const { user, profile } = useAuth();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isAdminUser, setIsAdminUser] = useState(false);
+    const [isSuperAdminUser, setIsSuperAdminUser] = useState(false);
 
     const isOrg = profile?.role === 'organization';
 
-    // Check if user is admin
+    // Check if user is admin or super admin
     useEffect(() => {
         if (user?.email) {
             loadAdminEmails().then(() => {
                 setIsAdminUser(isAdmin(user.email));
+                setIsSuperAdminUser(isSuperAdmin(user.email));
             });
         }
     }, [user]);
@@ -127,6 +130,29 @@ export default function Sidebar() {
 
             {/* Footer */}
             <div className="p-3 sm:p-4 border-t border-slate-100 space-y-1">
+                {isSuperAdminUser && (
+                    <Link href="/admin/ai-dashboard" onClick={() => setIsMobileOpen(false)}>
+                        <motion.div
+                            whileHover={{ x: -4 }}
+                            whileTap={{ scale: 0.97 }}
+                            className={cn(
+                                'flex items-center gap-3 px-4 py-3.5 sm:py-3 rounded-xl font-medium transition-all duration-200 relative',
+                                pathname === '/admin/ai-dashboard'
+                                    ? 'bg-gradient-to-l from-primary-50 to-indigo-50 text-primary-700 shadow-sm'
+                                    : 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'
+                            )}
+                        >
+                            <IoSparklesOutline size={22} className="sm:w-5 sm:h-5" />
+                            <span className="text-[15px] sm:text-sm">🤖 مساعد الدراسة</span>
+                            {pathname === '/admin/ai-dashboard' && (
+                                <motion.div
+                                    layoutId="activeTabAI"
+                                    className="absolute right-0 w-1 h-8 bg-primary-500 rounded-l-full"
+                                />
+                            )}
+                        </motion.div>
+                    </Link>
+                )}
                 {isAdminUser && (
                     <Link href="/admin/courses" onClick={() => setIsMobileOpen(false)}>
                         <motion.div
@@ -134,16 +160,16 @@ export default function Sidebar() {
                             whileTap={{ scale: 0.97 }}
                             className={cn(
                                 'flex items-center gap-3 px-4 py-3.5 sm:py-3 rounded-xl font-medium transition-all duration-200 relative',
-                                pathname.startsWith('/admin')
+                                pathname.startsWith('/admin') && pathname !== '/admin/ai-dashboard'
                                     ? 'bg-gradient-to-l from-amber-50 to-orange-50 text-amber-700 shadow-sm'
                                     : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700'
                             )}
                         >
                             <IoSettingsOutline size={22} className="sm:w-5 sm:h-5" />
                             <span className="text-[15px] sm:text-sm">إدارة الكورسات</span>
-                            {pathname.startsWith('/admin') && (
+                            {pathname.startsWith('/admin') && pathname !== '/admin/ai-dashboard' && (
                                 <motion.div
-                                    layoutId="activeTab"
+                                    layoutId="activeTabAdmin"
                                     className="absolute right-0 w-1 h-8 bg-amber-500 rounded-l-full"
                                 />
                             )}

@@ -1,0 +1,231 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    IoSparklesOutline,
+    IoMenuOutline,
+    IoAddOutline,
+    IoClose,
+    IoDocumentTextOutline,
+} from 'react-icons/io5';
+import Navbar from '@/app/components/layout/Navbar';
+import Footer from '@/app/components/layout/Footer';
+import { useAuth } from '@/app/hooks/useAuth';
+import AIChatPanel from '@/app/components/ai/AIChatPanel';
+import ConversationSidebar from '@/app/components/ai/ConversationSidebar';
+import Link from 'next/link';
+
+export default function AIAgentPage() {
+    const { user, profile, loading } = useAuth();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [currentConversationId, setCurrentConversationId] = useState<string | undefined>();
+    const [tokenBalance, setTokenBalance] = useState<number>(0);
+    const [dailyRequests, setDailyRequests] = useState<number>(0);
+
+    // Fetch token balance
+    const fetchBalance = useCallback(async () => {
+        if (!user) return;
+        try {
+            const token = await user.getIdToken();
+            const res = await fetch('/api/ai/tokens', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.account) {
+                    setTokenBalance(data.account.remainingTokens);
+                    setDailyRequests(data.account.dailyRequestCount);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch balance:', err);
+        }
+    }, [user]);
+
+    // Initialize token account if needed
+    useEffect(() => {
+        async function initAccount() {
+            if (!user || !profile) return;
+            try {
+                const token = await user.getIdToken();
+                // Try to get balance first
+                const res = await fetch('/api/ai/tokens', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                const data = await res.json();
+
+                if (!data.account) {
+                    // Initialize new account
+                    await fetch('/api/ai/tokens', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ displayName: profile.displayName }),
+                    });
+                    await fetchBalance();
+                } else {
+                    setTokenBalance(data.account.remainingTokens);
+                    setDailyRequests(data.account.dailyRequestCount);
+                }
+            } catch (err) {
+                console.error('Init account error:', err);
+            }
+        }
+        initAccount();
+    }, [user, profile, fetchBalance]);
+
+    const handleNewChat = () => {
+        setCurrentConversationId(undefined);
+        setSidebarOpen(false);
+    };
+
+    const handleSelectConversation = (id: string) => {
+        setCurrentConversationId(id);
+        setSidebarOpen(false);
+    };
+
+    const handleTokenUpdate = (newBalance: number, newDailyCount: number) => {
+        setTokenBalance(newBalance);
+        setDailyRequests(newDailyCount);
+    };
+
+    if (loading) {
+        return (
+            <>
+                <Navbar />
+                <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white pt-20 flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                </main>
+            </>
+        );
+    }
+
+    if (!user) {
+        return (
+            <>
+                <Navbar />
+                <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white pt-24 pb-16">
+                    <div className="max-w-lg mx-auto px-4 text-center">
+                        <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <IoSparklesOutline size={40} className="text-primary-600" />
+                        </div>
+                        <h1 className="text-2xl font-black text-slate-900 mb-3">مساعد الدراسة الذكي</h1>
+                        <p className="text-slate-500 mb-8">سجّل دخولك للوصول لمساعد الذكاء الاصطناعي</p>
+                        <Link href="/login?redirect=/ai-agent">
+                            <motion.span
+                                className="inline-block px-8 py-3 bg-primary-600 text-white rounded-xl font-bold cursor-pointer"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                تسجيل الدخول
+                            </motion.span>
+                        </Link>
+                    </div>
+                </main>
+                <Footer />
+            </>
+        );
+    }
+
+    return (
+        <>
+            <Navbar />
+            <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pt-16 sm:pt-20">
+                <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] sm:h-[calc(100vh-9.5rem)]">
+                    {/* Sidebar — Desktop */}
+                    <div className="hidden lg:flex w-72 flex-shrink-0 border-l border-slate-200 bg-white/80 backdrop-blur flex-col">
+                        <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
+                            <button
+                                onClick={handleNewChat}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors"
+                            >
+                                <IoAddOutline size={20} />
+                                محادثة جديدة
+                            </button>
+                            <Link
+                                href="/ai-agent/study"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-l from-primary-100 to-white text-primary-700 border border-primary-200 rounded-xl font-bold hover:bg-primary-50 transition-colors shadow-sm"
+                            >
+                                <IoDocumentTextOutline size={18} />
+                                وكيل الدراسة الذكي
+                            </Link>
+                        </div>
+                        <ConversationSidebar
+                            userId={user.uid}
+                            currentConversationId={currentConversationId}
+                            onSelectConversation={handleSelectConversation}
+                        />
+                    </div>
+
+                    {/* Mobile Sidebar Overlay */}
+                    <AnimatePresence>
+                        {sidebarOpen && (
+                            <>
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+                                    onClick={() => setSidebarOpen(false)}
+                                />
+                                <motion.div
+                                    initial={{ x: '100%' }}
+                                    animate={{ x: 0 }}
+                                    exit={{ x: '100%' }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                    className="fixed right-0 top-0 bottom-0 w-72 bg-white z-50 flex flex-col shadow-2xl lg:hidden"
+                                >
+                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                                        <button
+                                            onClick={handleNewChat}
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm"
+                                        >
+                                            <IoAddOutline size={18} />
+                                            محادثة جديدة
+                                        </button>
+                                        <button onClick={() => setSidebarOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                                            <IoClose size={20} />
+                                        </button>
+                                    </div>
+                                    <ConversationSidebar
+                                        userId={user.uid}
+                                        currentConversationId={currentConversationId}
+                                        onSelectConversation={handleSelectConversation}
+                                    />
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Chat Panel */}
+                    <div className="flex-1 flex flex-col min-w-0">
+                        {/* Mobile Menu Button */}
+                        <div className="lg:hidden flex items-center justify-between px-4 py-2 bg-white/80 backdrop-blur border-b border-slate-100">
+                            <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                <IoSparklesOutline size={18} className="text-primary-600" />
+                                مساعد الدراسة
+                            </span>
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className="p-2 hover:bg-slate-100 rounded-lg"
+                            >
+                                <IoMenuOutline size={22} />
+                            </button>
+                        </div>
+
+                        <AIChatPanel
+                            userId={user.uid}
+                            userDisplayName={profile?.displayName || 'طالب'}
+                            conversationId={currentConversationId}
+                            onConversationCreated={(id) => setCurrentConversationId(id)}
+                            onTokenUpdate={handleTokenUpdate}
+                        />
+                    </div>
+                </div>
+            </main>
+        </>
+    );
+}

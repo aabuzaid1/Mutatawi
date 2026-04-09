@@ -132,6 +132,28 @@ service cloud.firestore {
     match /adminEmails/{emailId} {
       allow read, write: if false;
     }
+    // ===================== AI AGENT =====================
+    // Token accounts — المستخدم يقرأ حسابه فقط، الكتابة من السيرفر
+    match /aiTokenAccounts/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // Server-only (Admin SDK)
+    }
+
+    // AI Conversations — المستخدم يقرأ محادثاته فقط
+    match /aiConversations/{convId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false; // Server-only
+      
+      match /messages/{msgId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+    // Server-only AI collections
+    match /aiTokenTransactions/{txId} { allow read, write: if false; }
+    match /aiReferrals/{refId} { allow read, write: if false; }
+    match /aiUsageStats/{statId} { allow read, write: if false; }
 
     // ===================== DEFAULT: DENY ALL =====================
     match /{document=**} {

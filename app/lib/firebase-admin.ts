@@ -110,3 +110,11 @@ export const adminDb = new Proxy({} as ReturnType<typeof getFirestore>, {
         return (getFirestore(getApp()) as any)[prop];
     },
 });
+
+/** Server-side Storage access */
+import { getStorage } from 'firebase-admin/storage';
+export const adminStorage = new Proxy({} as ReturnType<typeof getStorage>, {
+    get(_, prop) {
+        return (getStorage(getApp()) as any)[prop];
+    },
+});

@@ -6,6 +6,31 @@ const nextConfig = {
     experimental: {
         serverComponentsExternalPackages: ['firebase-admin', '@google-cloud/firestore', '@opentelemetry/api'],
     },
+    webpack: (config, { isServer, webpack }) => {
+        if (!isServer) {
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                path: false,
+                os: false,
+                net: false,
+                tls: false,
+                https: false,
+                stream: false,
+                crypto: false,
+                zlib: false,
+            };
+        }
+        
+        // Strip out the "node:" prefix from imports so the fallbacks apply
+        config.plugins.push(
+            new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+                resource.request = resource.request.replace(/^node:/, '');
+            })
+        );
+        
+        return config;
+    },
     // Server-only env vars — forwarded to API routes only (NOT exposed to browser)
     // These are available via process.env in API routes and server components
     serverRuntimeConfig: {

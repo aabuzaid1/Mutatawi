@@ -12,6 +12,13 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    // ===================== GENERATED FILES =====================
+    // الملفات المولدة من الذكاء الاصطناعي (مثل تقارير أو عروض تقديمية)
+    match /generated/{fileName} {
+      allow read: if true;
+      allow write: if false; // الرفع مسموح فقط من السيرفر (Admin SDK)
+    }
+
     // ===================== DEFAULT: DENY ALL =====================
     match /{allPaths=**} {
       allow read, write: if false;

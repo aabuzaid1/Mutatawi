@@ -9,11 +9,26 @@ import {
     IoSwapHorizontalOutline,
     IoImageOutline,
     IoGitMergeOutline,
+    IoSparklesOutline,
 } from 'react-icons/io5';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { useAuth } from '@/app/hooks/useAuth';
 import Link from 'next/link';
+
+const aiTools = [
+    {
+        id: 'ai-agent',
+        title: 'مساعد الدراسة الذكي',
+        description: 'مساعد مدعوم بالذكاء الاصطناعي يلخص، يختبرك، ويصمم لك عروضاً وملفات.',
+        icon: IoSparklesOutline,
+        bgColor: 'bg-primary-50',
+        iconColor: 'text-primary-600',
+        borderColor: 'border-primary-100 hover:border-primary-300',
+        href: '/ai-agent',
+        requiresAuth: true,
+    },
+];
 
 const volunteerTools = [
     {
@@ -173,6 +188,20 @@ export default function ToolsPage() {
                         <p className="text-slate-500 max-w-2xl mx-auto">
                             مجموعة من الأدوات المجانية لإدارة نشاطك التطوعي وتحويل ملفاتك
                         </p>
+                    </motion.div>
+
+                    {/* AI Tools Section */}
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }}>
+                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            ✨ أدوات الذكاء الاصطناعي
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
+                            {aiTools.map((tool, i) => (
+                                <motion.div key={tool.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                                    <ToolCard tool={tool} requiresAuth={tool.requiresAuth} user={user} />
+                                </motion.div>
+                            ))}
+                        </div>
                     </motion.div>
 
                     {/* Volunteer Tools Section */}

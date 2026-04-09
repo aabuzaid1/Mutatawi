@@ -144,3 +144,105 @@ export interface CourseProgress {
     completedLessons: number[]; // indices of completed lessons
     completedAt: Date | null;
 }
+
+// ===================== AI AGENT TYPES =====================
+
+export type StudyMode = 'chat' | 'explain' | 'summarize' | 'quiz' | 'flashcards' | 'doc' | 'slides' | 'sheet';
+
+export type TokenTransactionType = 'initial' | 'volunteer' | 'course' | 'referral' | 'admin_grant' | 'usage';
+
+export interface AITokenAccount {
+    userId: string;
+    email: string;
+    displayName: string;
+    totalTokens: number;
+    usedTokens: number;
+    remainingTokens: number;
+    dailyRequestCount: number;
+    dailyResetDate: string;       // YYYY-MM-DD
+    lastUsed: Date | null;
+    createdAt: Date;
+    suspended: boolean;
+}
+
+export interface TokenTransaction {
+    id: string;
+    userId: string;
+    type: TokenTransactionType;
+    amount: number;               // positive = credit, negative = debit
+    description: string;
+    timestamp: Date;
+    referenceId?: string;
+}
+
+export interface AIConversation {
+    id: string;
+    userId: string;
+    title: string;
+    messageCount: number;
+    tokensUsed: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface AIMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    type: StudyMode;
+    attachments?: string[];
+    tokensUsed?: number;
+    timestamp: Date;
+    structuredData?: AIDocOutput | AISlidesOutput | AISheetsOutput | AIQuizOutput | AIFlashcardsOutput;
+}
+
+// Structured AI outputs
+export interface AIDocOutput {
+    title: string;
+    sections: Array<{
+        heading: string;
+        content: string;
+    }>;
+}
+
+export interface AISlidesOutput {
+    title: string;
+    slides: Array<{
+        title: string;
+        points: string[];
+        notes?: string;
+    }>;
+}
+
+export interface AISheetsOutput {
+    title: string;
+    columns: string[];
+    rows: string[][];
+}
+
+export interface AIQuizOutput {
+    title: string;
+    questions: Array<{
+        question: string;
+        options: string[];
+        correctIndex: number;
+        explanation: string;
+    }>;
+}
+
+export interface AIFlashcardsOutput {
+    title: string;
+    cards: Array<{
+        front: string;
+        back: string;
+    }>;
+}
+
+export interface AIReferral {
+    id: string;
+    inviterUserId: string;
+    inviterEmail: string;
+    invitedEmail: string;
+    status: 'pending' | 'completed';
+    createdAt: Date;
+    completedAt?: Date;
+}
