@@ -609,7 +609,7 @@ export async function POST(request: NextRequest) {
             try {
                 result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
             } catch (geminiErr: any) {
-                console.warn('Gemini API failed, falling back to Kimi:', geminErr.message);
+                console.warn('Gemini API failed, falling back to Kimi:', geminiErr.message);
                 result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
             }
         } else {
