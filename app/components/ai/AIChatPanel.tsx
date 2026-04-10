@@ -265,10 +265,10 @@ export default function AIChatPanel({
                         </p>
                         <div className="grid grid-cols-2 gap-2 mt-6 max-w-sm">
                             {[
-                                { text: 'اشرحلي الفوتوسنثيسس', mode: 'explain' as StudyMode },
-                                { text: 'لخصلي الحرب العالمية الثانية', mode: 'summarize' as StudyMode },
-                                { text: 'اعملي اختبار عن الفيزياء', mode: 'quiz' as StudyMode },
-                                { text: 'اعملي ملف docs عن البرمجة', mode: 'doc' as StudyMode },
+                                { text: 'اشرح عملية البناء الضوئي 🌿', mode: 'explain' as StudyMode },
+                                { text: 'لخص أحداث الحرب العالمية 🌍', mode: 'summarize' as StudyMode },
+                                { text: 'أنشئ اختباراً في الفيزياء ⚛️', mode: 'quiz' as StudyMode },
+                                { text: 'صمم تقريراً عن البرمجة 📑', mode: 'doc' as StudyMode },
                             ].map((suggestion) => (
                                 <motion.button
                                     key={suggestion.text}

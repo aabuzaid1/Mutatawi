@@ -6,10 +6,10 @@ import { IoSparklesOutline, IoClose, IoArrowForward, IoChatbubblesOutline } from
 import Link from 'next/link';
 
 const suggestions = [
-    { text: 'اشرحلي الفوتوسنثيسس 🌱', icon: '📚' },
-    { text: 'اعملي عرض تقديمي 📊', icon: '✨' },
-    { text: 'لخصلي درس الفيزياء ⚡', icon: '🧠' },
-    { text: 'اختبرني بالرياضيات 🔢', icon: '🎯' },
+    { text: 'اشرح عملية البناء الضوئي 🌿', icon: '🧬' },
+    { text: 'لخص أحداث الحرب العالمية 🌍', icon: '📜' },
+    { text: 'أنشئ اختباراً في الفيزياء ⚛️', icon: '🎯' },
+    { text: 'صمم تقريراً عن البرمجة 📑', icon: '💻' },
 ];
 
 const typingMessages = [
