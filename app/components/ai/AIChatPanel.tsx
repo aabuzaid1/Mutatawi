@@ -261,7 +261,7 @@ export default function AIChatPanel({
                             أهلاً {userDisplayName}! 👋
                         </h2>
                         <p className="text-sm text-slate-500 max-w-sm">
-                            أنا مساعد الدراسة الذكي. اسألني أي سؤال، أو استخدم أوضاع الدراسة أدناه!
+                            أنا حنظلة. اسألني أي سؤال، أو استخدم أوضاع الدراسة أدناه!
                         </p>
                         <div className="grid grid-cols-2 gap-2 mt-6 max-w-sm">
                             {[
@@ -295,8 +295,8 @@ export default function AIChatPanel({
                         >
                             {/* Avatar */}
                             <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user'
-                                    ? 'bg-primary-100'
-                                    : 'bg-gradient-to-br from-violet-100 to-purple-200'
+                                ? 'bg-primary-100'
+                                : 'bg-gradient-to-br from-violet-100 to-purple-200'
                                 }`}>
                                 {msg.role === 'user'
                                     ? <IoPersonCircleOutline size={20} className="text-primary-600" />
@@ -307,8 +307,8 @@ export default function AIChatPanel({
                             {/* Content */}
                             <div className={`max-w-[80%] sm:max-w-[70%] ${msg.role === 'user' ? 'text-right' : ''}`}>
                                 <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                        ? 'bg-primary-600 text-white rounded-tr-md'
-                                        : 'bg-white border border-slate-100 shadow-sm text-slate-800 rounded-tl-md'
+                                    ? 'bg-primary-600 text-white rounded-tr-md'
+                                    : 'bg-white border border-slate-100 shadow-sm text-slate-800 rounded-tl-md'
                                     }`}>
                                     {/* Image attachments */}
                                     {msg.attachments?.map((att, i) => (

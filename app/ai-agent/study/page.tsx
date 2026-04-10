@@ -90,8 +90,8 @@ export default function AIStudyAgentPage() {
             <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <IoSparklesOutline size={40} className="text-primary-600" />
             </div>
-            <h1 className="text-2xl font-black text-slate-900 mb-3">وكيل الدراسة الذكي</h1>
-            <p className="text-slate-500 mb-8">سجّل دخولك للوصول لوكيل الدراسة الذكي</p>
+            <h1 className="text-2xl font-black text-slate-900 mb-3">وكيل الذكاء حنظلة</h1>
+            <p className="text-slate-500 mb-8">سجّل دخولك للوصول إلى حنظلة</p>
             <Link href="/login?redirect=/ai-agent/study">
               <motion.span
                 className="inline-block px-8 py-3 bg-primary-600 text-white rounded-xl font-bold cursor-pointer"
@@ -121,7 +121,7 @@ export default function AIStudyAgentPage() {
             className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 transition-colors mb-6"
           >
             <IoArrowBack size={16} />
-            العودة للمساعد الذكي
+            العودة لحنظلة
           </Link>
 
           {/* Header */}
@@ -134,7 +134,7 @@ export default function AIStudyAgentPage() {
               <IoRocketOutline size={32} className="text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-2">
-              وكيل الدراسة الذكي
+              وكيل الذكاء حنظلة
             </h1>
             <p className="text-slate-500 text-lg">
               أدخل هدفك الدراسي وسنقوم بإنشاء تقرير أو عرض تقديمي جاهز للتحميل

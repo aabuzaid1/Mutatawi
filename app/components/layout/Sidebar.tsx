@@ -143,7 +143,7 @@ export default function Sidebar() {
                             )}
                         >
                             <IoSparklesOutline size={22} className="sm:w-5 sm:h-5" />
-                            <span className="text-[15px] sm:text-sm">🤖 مساعد الدراسة</span>
+                            <span className="text-[15px] sm:text-sm">🤖 حنظلة</span>
                             {pathname === '/admin/ai-dashboard' && (
                                 <motion.div
                                     layoutId="activeTabAI"

@@ -33,7 +33,7 @@ export default function Navbar() {
         { href: '/', label: 'الرئيسية' },
         { href: '/opportunities', label: 'فرص التطوع' },
         { href: '/courses', label: 'الكورسات' },
-        { href: '/ai-agent', label: '🤖 مساعد الدراسة' },
+        { href: '/ai-agent', label: '🤖 حنظلة' },
         { href: '/tools', label: 'الأدوات' },
     ];
 

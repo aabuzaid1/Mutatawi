@@ -112,8 +112,8 @@ export default function AIAgentPage() {
                         <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
                             <IoSparklesOutline size={40} className="text-primary-600" />
                         </div>
-                        <h1 className="text-2xl font-black text-slate-900 mb-3">مساعد الدراسة الذكي</h1>
-                        <p className="text-slate-500 mb-8">سجّل دخولك للوصول لمساعد الذكاء الاصطناعي</p>
+                        <h1 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">🤖 حنظلة</h1>
+                        <p className="text-slate-500 mb-8">سجّل دخولك للوصول لحنظلة</p>
                         <Link href="/login?redirect=/ai-agent">
                             <motion.span
                                 className="inline-block px-8 py-3 bg-primary-600 text-white rounded-xl font-bold cursor-pointer"
@@ -204,9 +204,9 @@ export default function AIAgentPage() {
                     <div className="flex-1 flex flex-col min-w-0">
                         {/* Mobile Menu Button */}
                         <div className="lg:hidden flex items-center justify-between px-4 py-2 bg-white/80 backdrop-blur border-b border-slate-100">
-                            <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span className="text-base font-black text-slate-800 flex items-center gap-1.5 tracking-wide">
                                 <IoSparklesOutline size={18} className="text-primary-600" />
-                                مساعد الدراسة
+                                حنظلة
                             </span>
                             <button
                                 onClick={() => setSidebarOpen(true)}
