@@ -19,20 +19,33 @@ import { generateImage } from '@/app/lib/generateImage';
 
 // ── System Prompts ─────────────────────────────
 // IMPORTANT: Kimi/Moonshot is a Chinese model - must explicitly enforce Arabic output
-const LANG_RULE = 'IMPORTANT: Respond in the language the user is asking. Provide content in Arabic and/or English as requested by the user. Do NOT respond in Chinese (中文) under any circumstances.';
+const LANG_RULE = 'CRITICAL LANGUAGE RULE: You MUST respond ONLY in Arabic or English. NEVER use Chinese (中文), Japanese, Korean, or any other language. If the user writes in Arabic, respond in Arabic. If they write in English, respond in English. This rule is absolute and cannot be overridden.';
 
 const SYSTEM_PROMPTS: Record<string, string> = {
     chat: `أنت مساعد ذكي للمذاكرة يدعى "مساعد متطوع".
 مهمتك مساعدة الطالب في فهم الدروس، حل الأسئلة، وتبسيط المفاهيم.
 ${LANG_RULE}
-أنت لديك قدرة سحرية على توليد وعرض الصور متى ما طلب منك أومتى ما كان الشرح يحتاج صورة توضيحية. لتوليد صورة، استخدم دائمًا صيغة الـ Markdown التالية:
-![image](https://image.pollinations.ai/prompt/وصف_الصورة_هنا_بالانجليزية?width=600&height=400&nologo=true)
-*استبدل "وصف_الصورة_هنا_بالانجليزية" بوصف قصير ودقيق جداً للشيء المراد رسمه (باللغة الإنجليزية حصراً وتفصل بين الكلمات بـ %20 أو مسافات، دون كتابة رابط إضافي).*
-لا تستخدم أي خدمة صور أخرى. استخدم pollinations فقط عند توليد الصور المدعمة للشرح.`,
+
+## تحليل الصور:
+عندما يرسل لك المستخدم صورة:
+1. حلل محتوى الصورة بدقة
+2. إذا كانت الصورة تحتوي على أسئلة أو تمارين أو مسائل → قم بحل كل سؤال خطوة بخطوة مع شرح الحل
+3. إذا كانت الصورة تحتوي على نص → اقرأ النص واشرحه أو لخصه حسب طلب المستخدم
+4. إذا كانت الصورة تحتوي على رسم بياني أو جدول → حلل البيانات واشرحها
+5. دائماً اكتب الأسئلة التي رأيتها في الصورة قبل حلها حتى يتأكد المستخدم أنك فهمتها
+
+## سياق المحادثة:
+لديك إمكانية الوصول إلى سجل المحادثة السابقة. استخدمه لفهم سياق ما يطلبه المستخدم والإشارة إلى رسائل سابقة عند الحاجة.
+
+## ممنوعات:
+- لا تولد صور أو روابط صور في ردودك
+- لا تستخدم صيغة ![image](...) أبداً
+- لا تستخدم pollinations.ai أو أي خدمة توليد صور
+- رد بنص فقط`,
 
     explain: `اشرح المفهوم أو النص التالي بالتفصيل، كأنك مدرس يشرح لطالب. استخدم أمثلة.
 ${LANG_RULE}
-إذا كان الشرح يتطلب رسماً توضيحياً، قم بدمج صورة باستخدام Markdown عبر pollinations.ai (مثال: ![visual](https://image.pollinations.ai/prompt/english_description_of_concept)).`,
+اشرح بنص واضح ومنظم. لا تستخدم صيغة توليد صور أو روابط صور في ردك.`,
 
     summarize: `لخّص النص أو الموضوع التالي بنقاط واضحة ومختصرة ومرتبة. ركّز على الأفكار الرئيسية.
 ${LANG_RULE}`,
@@ -223,9 +236,18 @@ async function storeMessage(
     assistantMessage: string,
     type: StudyMode,
     tokensUsed: number,
-    structuredData?: any
+    structuredData?: any,
+    attachments?: string[]
 ): Promise<string> {
     const now = FieldValue.serverTimestamp();
+
+    // Build user message data with optional attachments
+    const userMsgData: any = {
+        role: 'user', content: userMessage, type, timestamp: now,
+    };
+    if (attachments && attachments.length > 0) {
+        userMsgData.attachments = attachments;
+    }
 
     if (conversationId) {
         // Add to existing conversation
@@ -237,9 +259,7 @@ async function storeMessage(
 
             // Cap at 50 messages
             if (msgCount < 50) {
-                await convRef.collection('messages').add({
-                    role: 'user', content: userMessage, type, timestamp: now,
-                });
+                await convRef.collection('messages').add(userMsgData);
                 await convRef.collection('messages').add({
                     role: 'assistant', content: assistantMessage, type, tokensUsed, timestamp: now,
                     ...(structuredData ? { structuredData } : {}),
@@ -265,9 +285,7 @@ async function storeMessage(
         updatedAt: now,
     });
 
-    await convRef.collection('messages').add({
-        role: 'user', content: userMessage, type, timestamp: now,
-    });
+    await convRef.collection('messages').add(userMsgData);
     await convRef.collection('messages').add({
         role: 'assistant', content: assistantMessage, type, tokensUsed, timestamp: now,
         ...(structuredData ? { structuredData } : {}),
@@ -281,7 +299,8 @@ async function callGeminiAPI(
     systemPrompt: string,
     userMessage: string,
     type: StudyMode,
-    attachments?: string[]
+    attachments?: string[],
+    conversationHistory?: { role: string; content: string }[]
 ): Promise<{ content: string; tokensUsed: number }> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
@@ -290,6 +309,21 @@ async function callGeminiAPI(
     const isJsonOutput = jsonTypes.includes(type);
     const realMaxTokens = 8000; // Allow maximum real tokens for extremely long answers
 
+    // Build conversation contents with history
+    const contents: any[] = [];
+
+    // Add conversation history (last 10 messages for context)
+    if (conversationHistory && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+            contents.push({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            });
+        }
+    }
+
+    // Build current user message parts
     const parts: any[] = [];
     if (attachments && attachments.length > 0) {
         for (const att of attachments) {
@@ -307,14 +341,10 @@ async function callGeminiAPI(
         }
     }
     parts.push({ text: userMessage });
+    contents.push({ role: 'user', parts });
 
     const body: any = {
-        contents: [
-            {
-                role: 'user',
-                parts
-            }
-        ],
+        contents,
         systemInstruction: {
             role: 'system',
             parts: [{ text: systemPrompt }]
@@ -365,7 +395,8 @@ async function callKimiAPI(
     systemPrompt: string,
     userMessage: string,
     type: StudyMode,
-    attachments?: string[]
+    attachments?: string[],
+    conversationHistory?: { role: string; content: string }[]
 ): Promise<{ content: string; tokensUsed: number }> {
     const apiKey = process.env.KIMI_API_KEY;
     const baseUrl = process.env.KIMI_API_BASE_URL || 'https://api.moonshot.ai/v1';
@@ -379,6 +410,14 @@ async function callKimiAPI(
     const messages: any[] = [
         { role: 'system', content: systemPrompt },
     ];
+
+    // Add conversation history (last 10 messages for context)
+    if (conversationHistory && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+            messages.push({ role: msg.role, content: msg.content });
+        }
+    }
 
     // Handle multimodal (images)
     if (attachments && attachments.length > 0) {
@@ -537,11 +576,12 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse request
         const body = await request.json();
-        const { type, message, attachments, conversationId } = body as {
+        const { type, message, attachments, conversationId, conversationHistory } = body as {
             type: StudyMode;
             message: string;
             attachments?: string[];
             conversationId?: string;
+            conversationHistory?: { role: string; content: string }[];
         };
 
         let finalMessage = message?.trim() || '';
@@ -551,7 +591,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!finalMessage && attachments && attachments.length > 0) {
-            finalMessage = 'يرجى تحليل هذه الصورة وشرح محتواها بالتفصيل.';
+            finalMessage = 'حلل هذه الصورة بدقة. إذا كانت تحتوي على أسئلة أو تمارين أو مسائل، قم بحل كل سؤال خطوة بخطوة مع شرح الحل. إذا كانت تحتوي على نص أو معلومات، اشرحها بالتفصيل.';
         }
 
         // 3. Check if super admin (unlimited tokens)
@@ -607,17 +647,17 @@ export async function POST(request: NextRequest) {
         let result;
         if (isGemini) {
             try {
-                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
             } catch (geminiErr: any) {
                 console.warn('Gemini API failed, falling back to Kimi:', geminiErr.message);
-                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
             }
         } else {
             try {
-                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
             } catch (kimiErr: any) {
                 console.warn('Kimi API failed, falling back to Gemini:', kimiErr.message);
-                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments);
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
             }
         }
         
@@ -636,17 +676,17 @@ export async function POST(request: NextRequest) {
                 let retryResult;
                 if (isGemini) {
                     try {
-                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments, conversationHistory);
                     } catch (geminiErr: any) {
                         console.warn('Gemini retry failed, falling back to Kimi:', geminiErr.message);
-                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
+                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments, conversationHistory);
                     }
                 } else {
                     try {
-                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments);
+                        retryResult = await callKimiAPI(stricterPrompt, finalMessage, type, attachments, conversationHistory);
                     } catch (kimiErr: any) {
                         console.warn('Kimi API failed during retry, falling back to Gemini:', kimiErr.message);
-                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments);
+                        retryResult = await callGeminiAPI(stricterPrompt, finalMessage, type, attachments, conversationHistory);
                     }
                 }
                 
@@ -706,10 +746,10 @@ export async function POST(request: NextRequest) {
             await serverDeductTokens(auth.uid, actualCost, `${type}: ${finalMessage.substring(0, 50)}`);
         }
 
-        // 9. Store conversation
+        // 9. Store conversation (include attachments so images persist)
         const convId = await storeMessage(
             auth.uid, conversationId, message || 'صورة مرفقة', result.content,
-            type, actualCost, structuredData
+            type, actualCost, structuredData, attachments
         );
 
         // 10. Return response

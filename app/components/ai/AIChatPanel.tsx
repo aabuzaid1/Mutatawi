@@ -144,6 +144,12 @@ export default function AIChatPanel({
             const token = await auth.currentUser?.getIdToken();
             if (!token) throw new Error('غير مصرح');
 
+            // Build conversation history from current messages (last 10 for context)
+            const conversationHistory = messages.slice(-10).map(m => ({
+                role: m.role,
+                content: m.content,
+            }));
+
             const res = await fetch('/api/ai/generate', {
                 method: 'POST',
                 headers: {
@@ -155,6 +161,7 @@ export default function AIChatPanel({
                     message: messageText,
                     attachments: imageAttachments,
                     conversationId,
+                    conversationHistory,
                 }),
             });
 
@@ -457,13 +464,14 @@ export default function AIChatPanel({
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}
                         placeholder={
-                            activeMode === 'doc' ? 'اكتب موضوع المستند (مثال: الذكاء الاصطناعي)...'
-                                : activeMode === 'slides' ? 'اكتب موضوع العرض التقديمي...'
-                                    : activeMode === 'explain' ? 'اكتب ما تريد شرحه...'
-                                        : activeMode === 'quiz' ? 'اكتب موضوع الاختبار...'
-                                            : activeMode === 'summarize' ? 'اكتب النص المراد تلخيصه...'
-                                                : activeMode === 'flashcards' ? 'اكتب موضوع البطاقات...'
-                                                    : '...اكتب سؤالك هنا'
+                            attachments.length > 0 ? 'اكتب سؤالك عن الصورة أو اضغط إرسال لحل الأسئلة...'
+                                : activeMode === 'doc' ? 'اكتب موضوع المستند (مثال: الذكاء الاصطناعي)...'
+                                    : activeMode === 'slides' ? 'اكتب موضوع العرض التقديمي...'
+                                        : activeMode === 'explain' ? 'اكتب ما تريد شرحه...'
+                                            : activeMode === 'quiz' ? 'اكتب موضوع الاختبار...'
+                                                : activeMode === 'summarize' ? 'اكتب النص المراد تلخيصه...'
+                                                    : activeMode === 'flashcards' ? 'اكتب موضوع البطاقات...'
+                                                        : '...اكتب سؤالك هنا'
                         }
                         disabled={isLoading}
                         rows={1}
