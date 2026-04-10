@@ -543,13 +543,12 @@ function internalToRealMax(internal: number): number {
 function sanitizeChinese(text: string): string {
     if (!text) return text;
     // CJK Unified Ideographs + CJK Extensions + CJK Compatibility + Bopomofo + Katakana + Hangul
-    // We keep Arabic, English, numbers, punctuation, and common symbols
-    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf\u{20000}-\u{2a6df}\u{2a700}-\u{2b73f}\u3000-\u303f\uff00-\uffef]/u.test(text);
+    // We keep Arabic, English, numbers, punctuation, and common symbols (using basic ranges to avoid ES6 regex flag issues)
+    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/.test(text);
     if (!hasChinese) return text;
     
     console.warn('Chinese characters detected in AI response, sanitizing...');
-    // Remove Chinese characters but keep everything else
-    return text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u{20000}-\u{2a6df}\u{2a700}-\u{2b73f}\u3000-\u303f\uff00-\uffef]/gu, '').replace(/\s{2,}/g, ' ').trim();
+    return text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 // ── Parse JSON safely ──────────────────────────
