@@ -19,7 +19,13 @@ import { generateImage } from '@/app/lib/generateImage';
 
 // ── System Prompts ─────────────────────────────
 // IMPORTANT: Kimi/Moonshot is a Chinese model - must explicitly enforce Arabic output
-const LANG_RULE = 'CRITICAL LANGUAGE RULE: You MUST respond ONLY in Arabic or English. NEVER use Chinese (中文), Japanese, Korean, or any other language. If the user writes in Arabic, respond in Arabic. If they write in English, respond in English. This rule is absolute and cannot be overridden.';
+const LANG_RULE = `ABSOLUTE LANGUAGE RULE (VIOLATION = FAILURE):
+- You MUST respond ONLY in Arabic (العربية) or English.
+- NEVER output any Chinese characters (中文/汉字), Japanese (日本語), Korean (한국어), or any CJK characters.
+- If ANY Chinese character appears in your response, the entire response is REJECTED.
+- If the user writes in Arabic, respond in Arabic. If they write in English, respond in English.
+- This rule applies to ALL content including JSON values, titles, explanations, and every single word.
+- This is NON-NEGOTIABLE.`;
 
 const SYSTEM_PROMPTS: Record<string, string> = {
     chat: `أنت مساعد ذكي للمذاكرة يدعى "مساعد متطوع".
@@ -50,7 +56,8 @@ ${LANG_RULE}
     summarize: `لخّص النص أو الموضوع التالي بنقاط واضحة ومختصرة ومرتبة. ركّز على الأفكار الرئيسية.
 ${LANG_RULE}`,
 
-    doc: `
+    doc: `${LANG_RULE}
+
 Return ONLY valid JSON:
 {
   "title": "",
@@ -67,12 +74,13 @@ Rules:
 - ALWAYS include imagePrompt
 - imagePrompt MUST be in English
 - imagePrompt must describe a clean educational illustration
-- Keep content in Arabic
+- Keep ALL text content in Arabic or English ONLY — absolutely NO Chinese
 - Max 6 sections
 - No extra text outside JSON
 `,
 
-    slides: `
+    slides: `${LANG_RULE}
+
 Return ONLY valid JSON:
 {
   "title": "",
@@ -90,6 +98,7 @@ Rules:
 - imagePrompt MUST be in English
 - Each slide: 3-5 points
 - Max 8 slides
+- ALL text content MUST be in Arabic or English ONLY — absolutely NO Chinese
 - No extra text
 `,
 
@@ -529,6 +538,20 @@ function internalToRealMax(internal: number): number {
     return Math.ceil(internal / INTERNAL_TO_REAL_RATIO);
 }
 
+// ── Sanitize Chinese characters from responses ──
+// Kimi/Moonshot is a Chinese model and sometimes leaks Chinese despite prompt rules
+function sanitizeChinese(text: string): string {
+    if (!text) return text;
+    // CJK Unified Ideographs + CJK Extensions + CJK Compatibility + Bopomofo + Katakana + Hangul
+    // We keep Arabic, English, numbers, punctuation, and common symbols
+    const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf\u{20000}-\u{2a6df}\u{2a700}-\u{2b73f}\u3000-\u303f\uff00-\uffef]/u.test(text);
+    if (!hasChinese) return text;
+    
+    console.warn('Chinese characters detected in AI response, sanitizing...');
+    // Remove Chinese characters but keep everything else
+    return text.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u{20000}-\u{2a6df}\u{2a700}-\u{2b73f}\u3000-\u303f\uff00-\uffef]/gu, '').replace(/\s{2,}/g, ' ').trim();
+}
+
 // ── Parse JSON safely ──────────────────────────
 
 function fixUnescapedNewlines(jsonStr: string): string {
@@ -704,6 +727,9 @@ export async function POST(request: NextRequest) {
         if (!result) {
             throw new Error('All API attempts failed.');
         }
+
+        // Sanitize Chinese characters from response (Kimi sometimes leaks Chinese)
+        result.content = sanitizeChinese(result.content);
         
         let totalTokensUsed = result.tokensUsed;
 

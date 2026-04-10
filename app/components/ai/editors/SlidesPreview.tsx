@@ -135,7 +135,11 @@ export default function SlidesPreview({ data, onClose }: SlidesPreviewProps) {
             }
         }
 
-        const blob = await pptx.write({ outputType: 'blob' }) as Blob;
+        // Use arraybuffer + explicit MIME type to ensure .pptx download (not .zip)
+        const arrayBuffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+        const blob = new Blob([arrayBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        });
         saveAs(blob, `${editedData.title || 'presentation'}.pptx`);
     }, [editedData]);
 

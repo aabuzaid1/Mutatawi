@@ -67,20 +67,24 @@ export async function callKimiGeneration(
 
   if (!apiKey) throw new Error('KIMI_API_KEY not configured');
 
+  const langRule = `ABSOLUTE LANGUAGE RULE: You MUST respond ONLY in Arabic or English. NEVER output ANY Chinese characters (中文/汉字), Japanese, Korean, or CJK characters. If ANY Chinese character appears, the response is REJECTED. This is NON-NEGOTIABLE.`;
+
   const systemPrompt =
     outputType === 'presentation'
       ? `You are a presentation content generator. Given a structured outline, transform it into a slide deck.
+${langRule}
 IMPORTANT: GENERATE ALL CONTENT IN THE SAME LANGUAGE AS THE OUTLINE (e.g. if the outline is English, generate English slides).
 Return ONLY valid JSON with this exact schema:
 { "title": "string", "slides": [{ "title": "string", "points": ["string"] }] }
 Each slide should have 3-5 concise bullet points. Generate at most 8 slides.
-Do NOT include markdown code fences. Do NOT respond in Chinese.`
+Do NOT include markdown code fences.`
       : `You are a report content generator. Given a structured outline, expand each section into detailed, well-written paragraphs for a formal academic document.
+${langRule}
 IMPORTANT: GENERATE ALL CONTENT IN THE SAME LANGUAGE AS THE OUTLINE (e.g. if the outline is English, generate English paragraphs).
 Return ONLY valid JSON with this exact schema:
 { "title": "string", "sections": [{ "heading": "string", "content": "string" }] }
 Each section should have at least 4-5 detailed sentences. Do NOT use actual newlines inside JSON strings; use \\n instead.
-Do NOT include markdown code fences. Do NOT respond in Chinese.`;
+Do NOT include markdown code fences.`;
 
   const userMessage = `Here is the outline to expand:\n${JSON.stringify(outline, null, 2)}`;
 

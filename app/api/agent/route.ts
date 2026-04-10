@@ -40,10 +40,10 @@ async function verifyAuth(req: NextRequest): Promise<string | null> {
 async function uploadToFirebase(buffer: Buffer, filename: string, contentType: string): Promise<string> {
   const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
   if (!bucketName) throw new Error('Storage bucket not configured in env.');
-  
+
   const bucket = adminStorage.bucket(bucketName);
   const file = bucket.file(`generated/${filename}`);
-  
+
   await file.save(buffer, {
     metadata: { contentType },
   });
@@ -53,7 +53,7 @@ async function uploadToFirebase(buffer: Buffer, filename: string, contentType: s
     action: 'read',
     expires: '01-01-2100',
   });
-  
+
   return url;
 }
 
@@ -129,10 +129,10 @@ async function generateDocx(data: StructuredOutline): Promise<string> {
 
   const buffer = await Packer.toBuffer(doc);
   const filename = `report-${Date.now()}.docx`;
-  
+
   return await uploadToFirebase(
-    Buffer.from(buffer), 
-    filename, 
+    Buffer.from(buffer),
+    filename,
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
 }
@@ -221,23 +221,14 @@ async function generatePptx(data: SlidesOutput): Promise<string> {
   }
 
   const filename = `presentation-${Date.now()}.pptx`;
-  
-  // Write to nodebuffer
-  const bufferArray = await pptx.stream() as any;
-  let fileBuffer: Buffer;
-  
-  if (Buffer.isBuffer(bufferArray)) {
-    fileBuffer = bufferArray;
-  } else if (typeof bufferArray === 'string') {
-    fileBuffer = Buffer.from(bufferArray, 'binary');
-  } else {
-    // Some versions return a string in write('nodebuffer'), but stream() is usually stream or Buffer.
-    // If stream() returns something else, fallback:
-    fileBuffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
-  }
+
+  // Use write with nodebuffer directly — pptx.stream() is unreliable
+  const fileBuffer = await pptx.write({ outputType: 'nodebuffer' }) as Buffer;
+
+  console.log('PPTX generated successfully, buffer size:', fileBuffer.length);
 
   return await uploadToFirebase(
-    fileBuffer,
+    Buffer.from(fileBuffer),
     filename,
     'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   );
@@ -247,10 +238,10 @@ async function generatePptx(data: SlidesOutput): Promise<string> {
 async function isSuperAdmin(email: string): Promise<boolean> {
   if (!email) return false;
   try {
-      const adminDoc = await adminDb.collection('adminEmails').doc(email.toLowerCase()).get();
-      return adminDoc.exists && adminDoc.data()?.role === 'super_admin';
+    const adminDoc = await adminDb.collection('adminEmails').doc(email.toLowerCase()).get();
+    return adminDoc.exists && adminDoc.data()?.role === 'super_admin';
   } catch {
-      return false;
+    return false;
   }
 }
 
@@ -260,27 +251,27 @@ async function checkServerSideTokens(userId: string, estimatedCost: number) {
   const snap = await accountRef.get();
 
   if (!snap.exists) {
-      return { allowed: false, reason: 'لا يوجد حساب توكنات.' };
+    return { allowed: false, reason: 'لا يوجد حساب توكنات.' };
   }
 
   const data = snap.data()!;
   const today = new Date().toISOString().split('T')[0];
 
   if (data.dailyResetDate !== today) {
-      await accountRef.update({ dailyRequestCount: 0, dailyResetDate: today });
-      data.dailyRequestCount = 0;
+    await accountRef.update({ dailyRequestCount: 0, dailyResetDate: today });
+    data.dailyRequestCount = 0;
   }
 
   if (data.suspended) {
-      return { allowed: false, reason: 'حسابك موقوف.' };
+    return { allowed: false, reason: 'حسابك موقوف.' };
   }
 
   if (data.remainingTokens < estimatedCost) {
-      return { allowed: false, reason: 'رصيد التوكنات غير كافٍ.', balance: data.remainingTokens };
+    return { allowed: false, reason: 'رصيد التوكنات غير كافٍ.', balance: data.remainingTokens };
   }
 
   if (data.dailyRequestCount >= MAX_DAILY_REQUESTS) {
-      return { allowed: false, reason: `وصلت للحد اليومي (${MAX_DAILY_REQUESTS} طلب).` };
+    return { allowed: false, reason: `وصلت للحد اليومي (${MAX_DAILY_REQUESTS} طلب).` };
   }
 
   return { allowed: true, balance: data.remainingTokens };
@@ -291,18 +282,18 @@ async function serverDeductTokens(userId: string, amount: number, description: s
   const accountRef = adminDb.collection('aiTokenAccounts').doc(userId);
 
   await accountRef.update({
-      usedTokens: FieldValue.increment(amount),
-      remainingTokens: FieldValue.increment(-amount),
-      dailyRequestCount: FieldValue.increment(1),
-      lastUsed: FieldValue.serverTimestamp(),
+    usedTokens: FieldValue.increment(amount),
+    remainingTokens: FieldValue.increment(-amount),
+    dailyRequestCount: FieldValue.increment(1),
+    lastUsed: FieldValue.serverTimestamp(),
   });
 
   await adminDb.collection('aiTokenTransactions').add({
-      userId,
-      type: 'usage',
-      amount: -amount,
-      description,
-      timestamp: FieldValue.serverTimestamp(),
+    userId,
+    type: 'usage',
+    amount: -amount,
+    description,
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 
@@ -320,21 +311,21 @@ async function storeAgentMessage(
   const title = userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '');
 
   const convRef = await adminDb.collection('aiConversations').add({
-      userId,
-      userEmail,
-      title,
-      messageCount: 2,
-      tokensUsed,
-      createdAt: now,
-      updatedAt: now,
+    userId,
+    userEmail,
+    title,
+    messageCount: 2,
+    tokensUsed,
+    createdAt: now,
+    updatedAt: now,
   });
 
   await convRef.collection('messages').add({
-      role: 'user', content: userMessage, type, timestamp: now,
+    role: 'user', content: userMessage, type, timestamp: now,
   });
   await convRef.collection('messages').add({
-      role: 'assistant', content: assistantMessageContent, type, tokensUsed, timestamp: now,
-      ...(structuredData ? { structuredData } : {}),
+    role: 'assistant', content: assistantMessageContent, type, tokensUsed, timestamp: now,
+    ...(structuredData ? { structuredData } : {}),
   });
 
   return convRef.id;
@@ -376,22 +367,22 @@ export async function POST(request: NextRequest) {
     // Get user email
     let userEmail = '';
     try {
-        const userRecord = await adminAuth.getUser(uid);
-        userEmail = userRecord.email || '';
+      const userRecord = await adminAuth.getUser(uid);
+      userEmail = userRecord.email || '';
     } catch { }
 
     const superAdmin = await isSuperAdmin(userEmail);
     const estimatedCost = estimateCostServer(goal.length, aiType);
 
     if (!superAdmin) {
-        const tokenCheck = await checkServerSideTokens(uid, estimatedCost);
-        if (!tokenCheck.allowed) {
-            return NextResponse.json({
-                error: tokenCheck.reason,
-                balance: tokenCheck.balance,
-                type: 'token_error',
-            }, { status: 429 });
-        }
+      const tokenCheck = await checkServerSideTokens(uid, estimatedCost);
+      if (!tokenCheck.allowed) {
+        return NextResponse.json({
+          error: tokenCheck.reason,
+          balance: tokenCheck.balance,
+          type: 'token_error',
+        }, { status: 429 });
+      }
     }
 
     // 3. Step 1 — Gemini: Analyse goal → structured outline
@@ -409,7 +400,9 @@ export async function POST(request: NextRequest) {
     // 4. Step 2 — Kimi: Generate final content (fallback to Gemini outline)
     let finalContent: StructuredOutline | SlidesOutput;
     try {
+      console.log('Calling Kimi generation for:', outputType, 'outline title:', outline.title);
       finalContent = await callKimiGeneration(outline, outputType);
+      console.log('Kimi generation succeeded:', JSON.stringify(finalContent).substring(0, 200));
     } catch (err: any) {
       console.warn('Kimi generation failed, falling back to Gemini content:', err.message);
       // Fallback: use Gemini outline directly
@@ -430,12 +423,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate content before file generation
+    if (outputType === 'presentation') {
+      const slidesData = finalContent as SlidesOutput;
+      if (!slidesData.slides || slidesData.slides.length === 0) {
+        console.error('Invalid slides data - no slides:', JSON.stringify(finalContent).substring(0, 300));
+        return NextResponse.json(
+          { error: 'فشل إنشاء العرض التقديمي. حاول مرة أخرى بهدف مختلف.' },
+          { status: 500 }
+        );
+      }
+    } else {
+      const docData = finalContent as StructuredOutline;
+      if (!docData.sections || docData.sections.length === 0) {
+        console.error('Invalid doc data - no sections:', JSON.stringify(finalContent).substring(0, 300));
+        return NextResponse.json(
+          { error: 'فشل إنشاء التقرير. حاول مرة أخرى بهدف مختلف.' },
+          { status: 500 }
+        );
+      }
+    }
+
     // 5. Generate file
     let fileUrl: string;
-    if (outputType === 'presentation') {
-      fileUrl = await generatePptx(finalContent as SlidesOutput);
-    } else {
-      fileUrl = await generateDocx(finalContent as StructuredOutline);
+    try {
+      if (outputType === 'presentation') {
+        console.log('Generating PPTX file...');
+        fileUrl = await generatePptx(finalContent as SlidesOutput);
+      } else {
+        console.log('Generating DOCX file...');
+        fileUrl = await generateDocx(finalContent as StructuredOutline);
+      }
+      console.log('File generated successfully:', fileUrl.substring(0, 100));
+    } catch (fileErr: any) {
+      console.error('File generation failed:', fileErr.message, fileErr.stack);
+      return NextResponse.json(
+        { error: `فشل إنشاء الملف: ${fileErr.message}` },
+        { status: 500 }
+      );
     }
 
     // 6. Database Operations (Deduct Tokens and Store Conversation)
@@ -444,18 +469,18 @@ export async function POST(request: NextRequest) {
     }
 
     await storeAgentMessage(
-      uid, 
+      uid,
       userEmail,
-      goal, 
-      `تم توليد ${outputType === 'report' ? 'تقرير' : 'عرض تقديمي'} بنجاح.\n[تحميل الملف](${fileUrl})`, 
-      aiType, 
-      estimatedCost, 
+      goal,
+      `تم توليد ${outputType === 'report' ? 'تقرير' : 'عرض تقديمي'} بنجاح.\n[تحميل الملف](${fileUrl})`,
+      aiType,
+      estimatedCost,
       finalContent
     );
 
     return NextResponse.json({ fileUrl, title: (finalContent as any).title });
   } catch (error: any) {
-    console.error('Agent error:', error);
+    console.error('Agent error:', error?.message, error?.stack?.substring(0, 500));
     return NextResponse.json(
       { error: 'حدث خطأ أثناء المعالجة. حاول مرة أخرى.' },
       { status: 500 }

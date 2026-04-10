@@ -8,7 +8,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from './context/AuthContext';
 import ToastProvider from './components/shared/ToastProvider';
-import FloatingButtons from './components/shared/FloatingButtons';
 import AnalyticsTracker from './components/shared/AnalyticsTracker';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -44,7 +43,6 @@ export default function RootLayout({
             <body className="font-tajawal antialiased">
                 <AuthProvider>
                     <ToastProvider />
-                    <FloatingButtons />
                     <AnalyticsTracker />
                     {children}
                 </AuthProvider>

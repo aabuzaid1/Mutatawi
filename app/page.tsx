@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/landing/Hero';
 import Footer from './components/layout/Footer';
+import AIChatbotWidget from './components/landing/AIChatbotWidget';
 import { useAuth } from './hooks/useAuth';
 
 // Lazy-load below-the-fold sections for faster initial page load
@@ -86,6 +87,7 @@ export default function Home() {
                 </section>
             )}
 
+            <AIChatbotWidget />
             <Footer />
         </main>
     );
