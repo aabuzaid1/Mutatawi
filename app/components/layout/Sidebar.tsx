@@ -198,7 +198,7 @@ export default function Sidebar() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setIsMobileOpen(true)}
-                className="md:hidden fixed top-4 right-4 z-50 w-12 h-12 bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+                className="lg:hidden fixed top-4 right-4 z-50 w-12 h-12 bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
                 aria-label="فتح القائمة"
             >
                 <IoMenuOutline size={24} />
@@ -215,7 +215,7 @@ export default function Sidebar() {
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
                             onClick={() => setIsMobileOpen(false)}
-                            className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[55]"
+                            className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[55]"
                         />
 
                         {/* Mobile Sidebar */}
@@ -224,7 +224,7 @@ export default function Sidebar() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: 300, opacity: 0 }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="md:hidden fixed right-0 top-0 h-screen w-[280px] bg-white shadow-2xl z-[60] flex flex-col"
+                            className="lg:hidden fixed right-0 top-0 h-screen w-[280px] bg-white shadow-2xl z-[60] flex flex-col"
                         >
                             {/* Close Button */}
                             <button
@@ -241,12 +241,12 @@ export default function Sidebar() {
             </AnimatePresence>
 
             {/* Desktop Sidebar */}
-            <aside className="hidden md:flex fixed right-0 top-0 h-screen w-64 bg-white border-l border-slate-100 shadow-soft z-40 flex-col">
+            <aside className="hidden lg:flex fixed right-0 top-0 h-screen w-64 bg-white border-l border-slate-100 shadow-soft z-40 flex-col">
                 <SidebarContent />
             </aside>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)]">
                 <div className="flex items-center justify-around py-2 px-2">
                     {links.map((link) => {
                         const isActive = pathname === link.href;

@@ -315,10 +315,27 @@ async function callGeminiAPI(
     // Add conversation history (last 10 messages for context)
     if (conversationHistory && conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-10);
+        
+        let lastRole = '';
         for (const msg of recentHistory) {
+            const role = msg.role === 'assistant' ? 'model' : 'user';
+            const text = msg.content?.trim() || '[مرفق]';
+            
+            // Skip consecutive same-role messages to satisfy Gemini strict alternating rules
+            if (role === lastRole) continue;
+            
             contents.push({
-                role: msg.role === 'assistant' ? 'model' : 'user',
-                parts: [{ text: msg.content }]
+                role: role,
+                parts: [{ text }]
+            });
+            lastRole = role;
+        }
+
+        // If the last role is 'user', we must add a model message so that the next user message alternates
+        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+            contents.push({
+                role: 'model',
+                parts: [{ text: 'تفضل، أنا مستعد لمساعدتك.' }]
             });
         }
     }
@@ -346,7 +363,6 @@ async function callGeminiAPI(
     const body: any = {
         contents,
         systemInstruction: {
-            role: 'system',
             parts: [{ text: systemPrompt }]
         },
         generationConfig: {
@@ -373,7 +389,8 @@ async function callGeminiAPI(
     if (!response.ok) {
         const err = await response.text();
         console.error('Gemini API error:', response.status, err);
-        throw new Error(`Gemini API error: ${response.status}`);
+        console.error('Gemini request had images:', !!(attachments && attachments.length > 0));
+        throw new Error(`Gemini API error: ${response.status} - ${err.substring(0, 200)}`);
     }
 
     const data = await response.json();
@@ -400,7 +417,10 @@ async function callKimiAPI(
 ): Promise<{ content: string; tokensUsed: number }> {
     const apiKey = process.env.KIMI_API_KEY;
     const baseUrl = process.env.KIMI_API_BASE_URL || 'https://api.moonshot.ai/v1';
-    const model = process.env.KIMI_MODEL || 'moonshot-v1-8k';
+    const baseModel = process.env.KIMI_MODEL || 'moonshot-v1-8k';
+    // Use kimi-k2.5 for vision (supports base64 image inputs natively)
+    const hasImages = attachments && attachments.length > 0;
+    const model = hasImages ? 'kimi-k2.5' : baseModel;
 
     if (!apiKey) {
         throw new Error('KIMI_API_KEY not configured');
@@ -415,7 +435,8 @@ async function callKimiAPI(
     if (conversationHistory && conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-10);
         for (const msg of recentHistory) {
-            messages.push({ role: msg.role, content: msg.content });
+            const text = msg.content?.trim() || '[مرفق]';
+            messages.push({ role: msg.role, content: text });
         }
     }
 
@@ -441,7 +462,8 @@ async function callKimiAPI(
         model,
         messages,
         max_tokens: realMaxTokens,
-        temperature: isJsonOutput ? 0.3 : 0.7,
+        // kimi-k2.5 only allows temperature=1
+        temperature: model === 'kimi-k2.5' ? 1 : (isJsonOutput ? 0.3 : 0.7),
     };
 
     if (isJsonOutput) {
@@ -643,22 +665,44 @@ export async function POST(request: NextRequest) {
         const systemPrompt = SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.chat;
         const useGeminiFor: StudyMode[] = ['chat', 'explain', 'summarize', 'quiz', 'flashcards'];
         const isGemini = useGeminiFor.includes(type);
+        const hasImages = attachments && attachments.length > 0;
 
         let result;
-        if (isGemini) {
+        if (hasImages) {
+            // Try Kimi vision model first (moonshot-v1-8k-vision-preview), then Gemini
             try {
-                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+                console.log('Processing image request with Kimi vision model...', { type, imageCount: attachments.length });
+                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+            } catch (kimiErr: any) {
+                console.warn('Kimi vision failed for image request:', kimiErr.message, '- trying Gemini...');
+                try {
+                    result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+                } catch (geminiErr: any) {
+                    console.error('Gemini also failed for image request:', geminiErr.message);
+                    return NextResponse.json(
+                        { error: 'فشل تحليل الصورة. تأكد من أن الصورة واضحة وحاول مرة أخرى.' },
+                        { status: 500 }
+                    );
+                }
+            }
+        } else if (isGemini) {
+            try {
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, undefined, conversationHistory);
             } catch (geminiErr: any) {
                 console.warn('Gemini API failed, falling back to Kimi:', geminiErr.message);
-                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, undefined, conversationHistory);
             }
         } else {
             try {
-                result = await callKimiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+                result = await callKimiAPI(systemPrompt, finalMessage, type, undefined, conversationHistory);
             } catch (kimiErr: any) {
-                console.warn('Kimi API failed, falling back to Gemini:', kimiErr.message);
-                result = await callGeminiAPI(systemPrompt, finalMessage, type, attachments, conversationHistory);
+                console.error('Kimi API failed, falling back to Gemini:', kimiErr);
+                result = await callGeminiAPI(systemPrompt, finalMessage, type, undefined, conversationHistory);
             }
+        }
+        
+        if (!result) {
+            throw new Error('All API attempts failed.');
         }
         
         let totalTokensUsed = result.tokensUsed;
@@ -781,6 +825,7 @@ export async function POST(request: NextRequest) {
             );
         }
         
+        console.error('Full error details:', JSON.stringify({ message: error?.message, stack: error?.stack?.substring(0, 500) }));
         return NextResponse.json(
             { error: 'حدث خطأ في معالجة الطلب. حاول مرة أخرى.' },
             { status: 500 }

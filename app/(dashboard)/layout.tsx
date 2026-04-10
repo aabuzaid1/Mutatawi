@@ -12,8 +12,8 @@ export default function DashboardLayout({
         <AuthGuard>
             <div className="min-h-screen bg-slate-50">
                 <Sidebar />
-                <main className="mr-0 md:mr-64 transition-all duration-300">
-                    <div className="p-4 sm:p-6 lg:p-8 pt-20 md:pt-8 pb-28 md:pb-8">
+                <main className="mr-0 lg:mr-64 transition-all duration-300">
+                    <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8 pb-28 lg:pb-8">
                         {children}
                     </div>
                 </main>

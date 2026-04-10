@@ -78,7 +78,7 @@ export default function Navbar() {
                         </button>
 
                         {/* Desktop Nav Links */}
-                        <div className="hidden md:flex items-center gap-8">
+                        <div className="hidden lg:flex items-center gap-8">
                             {navLinks.map((link, i) => (
                                 <motion.div
                                     key={link.href}
@@ -98,7 +98,7 @@ export default function Navbar() {
 
                         {/* Auth Buttons */}
                         <motion.div
-                            className="hidden md:flex items-center gap-3"
+                            className="hidden lg:flex items-center gap-3"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.6, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const }}
@@ -128,7 +128,7 @@ export default function Navbar() {
                         {/* Mobile Menu Toggle */}
                         <motion.button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden p-2 rounded-xl hover:bg-slate-100/80"
+                            className="lg:hidden p-2 rounded-xl hover:bg-slate-100/80"
                             whileTap={{ scale: 0.9 }}
                             transition={{ type: 'spring', stiffness: 400 }}
                         >
@@ -158,7 +158,7 @@ export default function Navbar() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
-                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden"
+                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
                             onClick={() => setIsMobileMenuOpen(false)}
                         />
 
@@ -171,7 +171,7 @@ export default function Navbar() {
                                 duration: 0.35,
                                 ease: [0.25, 0.46, 0.45, 0.94] as const,
                             }}
-                            className="fixed inset-x-0 top-16 z-40 bg-white/95 backdrop-blur-2xl border-b border-slate-100 shadow-card md:hidden"
+                            className="fixed inset-x-0 top-16 z-40 bg-white/95 backdrop-blur-2xl border-b border-slate-100 shadow-card lg:hidden"
                         >
                             <div className="p-4 space-y-1">
                                 {navLinks.map((link, i) => (

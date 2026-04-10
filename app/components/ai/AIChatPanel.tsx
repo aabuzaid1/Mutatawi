@@ -205,7 +205,7 @@ export default function AIChatPanel({
         } finally {
             setIsLoading(false);
         }
-    }, [conversationId, onConversationCreated, onTokenUpdate]);
+    }, [conversationId, onConversationCreated, onTokenUpdate, messages]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
