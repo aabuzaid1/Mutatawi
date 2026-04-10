@@ -16,6 +16,54 @@ import AIChatPanel from '@/app/components/ai/AIChatPanel';
 import ConversationSidebar from '@/app/components/ai/ConversationSidebar';
 import Link from 'next/link';
 
+/* ─── Scarf Pattern (Keffiyeh / Shemagh) ─── */
+function ScarfPattern({ color, side }: { color: string; side: 'left' | 'right' }) {
+    return (
+        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                {/* Houndstooth weave tile — smaller, tighter knots */}
+                <pattern id={`weave-${side}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <g fill={color}>
+                        <rect x="7" y="7" width="6" height="6" rx="0.5" />
+                        <rect x="-3" y="-3" width="6" height="6" rx="0.5" />
+                        <rect x="17" y="17" width="6" height="6" rx="0.5" />
+                        <rect x="-3" y="17" width="6" height="6" rx="0.5" />
+                        <rect x="17" y="-3" width="6" height="6" rx="0.5" />
+                    </g>
+                    <g stroke={color} strokeWidth="1.5" strokeLinecap="round">
+                        <line x1="3" y1="3" x2="7" y2="7" />
+                        <line x1="13" y1="13" x2="17" y2="17" />
+                        <line x1="3" y1="17" x2="7" y2="13" />
+                        <line x1="13" y1="7" x2="17" y2="3" />
+                    </g>
+                </pattern>
+
+                {/* Smooth horizontal fade: strong at edge → transparent inward */}
+                <linearGradient id={`fx-${side}`} x1={side === 'left' ? '0' : '1'} y1="0" x2={side === 'left' ? '1' : '0'} y2="0">
+                    <stop offset="0%" stopColor="white" stopOpacity="1" />
+                    <stop offset="35%" stopColor="white" stopOpacity="0.55" />
+                    <stop offset="70%" stopColor="white" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="white" stopOpacity="0" />
+                </linearGradient>
+                {/* Vertical fade: transparent at top/bottom edges */}
+                <linearGradient id={`fy-${side}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="white" stopOpacity="0" />
+                    <stop offset="8%" stopColor="white" stopOpacity="0.6" />
+                    <stop offset="25%" stopColor="white" stopOpacity="1" />
+                    <stop offset="75%" stopColor="white" stopOpacity="1" />
+                    <stop offset="92%" stopColor="white" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="white" stopOpacity="0" />
+                </linearGradient>
+                <mask id={`m-${side}`}>
+                    <rect width="100%" height="100%" fill={`url(#fx-${side})`} />
+                    <rect width="100%" height="100%" fill={`url(#fy-${side})`} style={{ mixBlendMode: 'multiply' } as any} />
+                </mask>
+            </defs>
+            <rect width="100%" height="100%" fill={`url(#weave-${side})`} mask={`url(#m-${side})`} />
+        </svg>
+    );
+}
+
 export default function AIAgentPage() {
     const { user, profile, loading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -133,8 +181,28 @@ export default function AIAgentPage() {
     return (
         <>
             <Navbar />
-            <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pt-16 sm:pt-20">
-                <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] sm:h-[calc(100vh-9.5rem)]">
+            <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pt-16 sm:pt-20 relative overflow-hidden">
+                {/* ─── Keffiyeh — Left side (Palestinian) ─── */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1.8, delay: 0.5 }}
+                    className="absolute left-0 top-0 w-[5%] sm:w-[8%] md:w-[10%] lg:w-[12%] h-full opacity-[0.035] sm:opacity-[0.06] pointer-events-none z-0"
+                >
+                    <ScarfPattern color="#111111" side="left" />
+                </motion.div>
+
+                {/* ─── Shemagh — Right side (Jordanian) ─── */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1.8, delay: 0.7 }}
+                    className="absolute right-0 top-0 w-[5%] sm:w-[8%] md:w-[10%] lg:w-[12%] h-full opacity-[0.035] sm:opacity-[0.06] pointer-events-none z-0"
+                >
+                    <ScarfPattern color="#b91c1c" side="right" />
+                </motion.div>
+
+                <div className="max-w-7xl mx-auto flex h-[calc(100vh-8rem)] sm:h-[calc(100vh-9.5rem)] relative z-10">
                     {/* Sidebar — Desktop */}
                     <div className="hidden lg:flex w-72 flex-shrink-0 border-l border-slate-200 bg-white/80 backdrop-blur flex-col">
                         <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
