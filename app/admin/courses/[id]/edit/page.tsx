@@ -18,6 +18,8 @@ import {
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { getCourse, updateCourseData } from '@/app/lib/firestore';
 import { uploadCourseThumbnail, compressImage, uploadCourseVideo } from '@/app/lib/storage';
@@ -185,7 +187,7 @@ export default function EditCoursePage() {
 
     const addQuestion = (lessonIndex: number) => {
         const updated = [...lessons];
-        updated[lessonIndex].questions.push({ question: '', options: ['', ''], correctIndex: 0 });
+        updated[lessonIndex].questions.push({ type: 'multiple_choice', question: '', options: ['', ''], correctIndex: 0, pairs: [] });
         setLessons(updated);
     };
     const updateQuestion = (lessonIndex: number, qIndex: number, field: string, value: any) => {
@@ -214,6 +216,22 @@ export default function EditCoursePage() {
     const removeQuestion = (lessonIndex: number, qIndex: number) => {
         const updated = [...lessons];
         updated[lessonIndex].questions.splice(qIndex, 1);
+        setLessons(updated);
+    };
+    const addPair = (lessonIndex: number, qIndex: number) => {
+        const updated = [...lessons];
+        if (!updated[lessonIndex].questions[qIndex].pairs) updated[lessonIndex].questions[qIndex].pairs = [];
+        updated[lessonIndex].questions[qIndex].pairs!.push({ target: '', draggable: '' });
+        setLessons(updated);
+    };
+    const updatePair = (lessonIndex: number, qIndex: number, pairIndex: number, field: 'target' | 'draggable', value: string) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex].pairs![pairIndex][field] = value;
+        setLessons(updated);
+    };
+    const removePair = (lessonIndex: number, qIndex: number, pairIndex: number) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex].pairs!.splice(pairIndex, 1);
         setLessons(updated);
     };
 
@@ -710,57 +728,130 @@ export default function EditCoursePage() {
                                                     
                                                     {lesson.questions.map((q, qIndex) => (
                                                         <div key={qIndex} className="bg-white p-4 rounded-lg border border-slate-200 space-y-3 relative shadow-sm">
-                                                            <button 
-                                                                onClick={() => removeQuestion(index, qIndex)}
-                                                                className="absolute top-3 left-3 text-red-400 hover:text-red-500 p-1 bg-red-50/50 rounded hover:bg-red-50 transition-all"
-                                                            >
-                                                                <IoTrashOutline size={16} />
-                                                            </button>
+                                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                                                                <span className="text-sm font-bold text-slate-800">السؤال {qIndex + 1}</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <select
+                                                                        value={q.type || 'multiple_choice'}
+                                                                        onChange={(e) => updateQuestion(index, qIndex, 'type', e.target.value)}
+                                                                        className="text-xs font-bold border border-slate-200 rounded-md py-1.5 px-2 outline-none text-slate-600 focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+                                                                    >
+                                                                        <option value="multiple_choice">اختيار من متعدد</option>
+                                                                        <option value="drag_drop">سحب وإفلات (مطابقة)</option>
+                                                                    </select>
+                                                                    <button 
+                                                                        onClick={() => removeQuestion(index, qIndex)}
+                                                                        className="text-red-400 hover:text-red-500 p-1.5 bg-red-50/50 rounded hover:bg-red-50 transition-all"
+                                                                        title="حذف السؤال"
+                                                                    >
+                                                                        <IoTrashOutline size={16} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                             <div>
-                                                                <label className="block text-xs font-bold text-slate-500 mb-1.5">نص السؤال {qIndex + 1}</label>
+                                                                <label className="block text-xs font-bold text-slate-500 mb-1.5">نص السؤال</label>
                                                                 <input
                                                                     type="text"
                                                                     value={q.question}
                                                                     onChange={(e) => updateQuestion(index, qIndex, 'question', e.target.value)}
-                                                                    placeholder="اكتب السؤال هنا..."
-                                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-purple-500 outline-none text-sm font-bold"
+                                                                    placeholder="اكتب السؤال هنا (باللغة الإنجليزية)..."
+                                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-purple-500 outline-none text-sm font-bold font-mono text-left"
+                                                                    dir="ltr"
                                                                 />
-                                                            </div>
-                                                            <div className="space-y-2.5 pt-2 pl-4 border-r-2 border-purple-100 pr-2">
-                                                                {q.options.map((opt, optIndex) => (
-                                                                    <div key={optIndex} className="flex items-center gap-2">
-                                                                        <div className="flex items-center justify-center p-1 cursor-pointer">
-                                                                            <input 
-                                                                                type="radio" 
-                                                                                name={`correct-${index}-${qIndex}`}
-                                                                                checked={q.correctIndex === optIndex}
-                                                                                onChange={() => updateQuestion(index, qIndex, 'correctIndex', optIndex)}
-                                                                                className="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
-                                                                            />
-                                                                        </div>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={opt}
-                                                                            onChange={(e) => updateOption(index, qIndex, optIndex, e.target.value)}
-                                                                            placeholder={`الخيار ${optIndex + 1}`}
-                                                                            className={`flex-1 px-3 py-1.5 rounded-lg border text-sm outline-none transition-all ${q.correctIndex === optIndex ? 'border-purple-400 bg-purple-50/30' : 'border-slate-200 focus:border-purple-300'}`}
-                                                                        />
-                                                                        <button 
-                                                                            onClick={() => removeOption(index, qIndex, optIndex)}
-                                                                            disabled={q.options.length <= 2}
-                                                                            className="text-slate-400 hover:text-red-500 disabled:opacity-30 p-1"
-                                                                        >
-                                                                            <IoCloseOutline size={18} />
-                                                                        </button>
+                                                                {q.question.includes('$') && (
+                                                                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-100 text-sm text-left overflow-x-auto" dir="ltr">
+                                                                        <Latex>{q.question}</Latex>
                                                                     </div>
-                                                                ))}
-                                                                <button 
-                                                                    onClick={() => addOption(index, qIndex)}
-                                                                    className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
-                                                                >
-                                                                    <IoAddOutline size={14} /> إضافة خيار
-                                                                </button>
+                                                                )}
                                                             </div>
+
+                                                            {(!q.type || q.type === 'multiple_choice') && (
+                                                                <div className="space-y-2.5 pt-2 pl-4 border-r-2 border-purple-100 pr-2">
+                                                                    <label className="block text-xs font-bold text-slate-500 mb-1">الخيارات (باللغة الإنجليزية)</label>
+                                                                    {q.options?.map((opt, optIndex) => (
+                                                                        <div key={optIndex} className="flex flex-col gap-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="flex items-center justify-center p-1 cursor-pointer">
+                                                                                    <input 
+                                                                                        type="radio" 
+                                                                                        name={`correct-${index}-${qIndex}`}
+                                                                                        checked={q.correctIndex === optIndex}
+                                                                                        onChange={() => updateQuestion(index, qIndex, 'correctIndex', optIndex)}
+                                                                                        className="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+                                                                                        title="تحديد كإجابة صحيحة"
+                                                                                    />
+                                                                                </div>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={opt}
+                                                                                    onChange={(e) => updateOption(index, qIndex, optIndex, e.target.value)}
+                                                                                    placeholder={`Option ${optIndex + 1}`}
+                                                                                    className={`flex-1 px-3 py-1.5 rounded-lg border text-sm outline-none transition-all font-mono text-left ${q.correctIndex === optIndex ? 'border-purple-400 bg-purple-50/30' : 'border-slate-200 focus:border-purple-300'}`}
+                                                                                    dir="ltr"
+                                                                                />
+                                                                                <button 
+                                                                                    onClick={() => removeOption(index, qIndex, optIndex)}
+                                                                                    disabled={(q.options?.length || 0) <= 2}
+                                                                                    className="text-slate-400 hover:text-red-500 disabled:opacity-30 p-1"
+                                                                                >
+                                                                                    <IoCloseOutline size={18} />
+                                                                                </button>
+                                                                            </div>
+                                                                            {opt.includes('$') && (
+                                                                                <div className="ml-8 text-xs text-left text-slate-500 bg-slate-50 p-2 rounded" dir="ltr">
+                                                                                    <Latex>{opt}</Latex>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                    <button 
+                                                                        onClick={() => addOption(index, qIndex)}
+                                                                        className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
+                                                                    >
+                                                                        <IoAddOutline size={14} /> إضافة خيار
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {q.type === 'drag_drop' && (
+                                                                <div className="space-y-2.5 pt-2 pl-4 border-r-2 border-purple-100 pr-2">
+                                                                    <label className="block text-xs font-bold text-slate-500 mb-1">أزواج المطابقة (الجزء الثابت / الجزء المتحرك)</label>
+                                                                    {q.pairs?.map((pair, pIndex) => (
+                                                                        <div key={pIndex} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                value={pair.target}
+                                                                                onChange={(e) => updatePair(index, qIndex, pIndex, 'target', e.target.value)}
+                                                                                placeholder="Target (e.g. Definition or variable)"
+                                                                                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 focus:border-purple-300 text-sm outline-none font-mono text-left bg-slate-50"
+                                                                                dir="ltr"
+                                                                            />
+                                                                            <span className="hidden sm:block text-slate-300 text-sm">⬅️</span>
+                                                                            <span className="block sm:hidden text-center text-slate-300 text-xs">⬇️</span>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={pair.draggable}
+                                                                                onChange={(e) => updatePair(index, qIndex, pIndex, 'draggable', e.target.value)}
+                                                                                placeholder="Draggable (e.g. Term or Value)"
+                                                                                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 focus:border-purple-300 text-sm outline-none font-mono text-left bg-purple-50"
+                                                                                dir="ltr"
+                                                                            />
+                                                                            <button 
+                                                                                onClick={() => removePair(index, qIndex, pIndex)}
+                                                                                className="text-slate-400 hover:text-red-500 p-1 self-end sm:self-center bg-slate-100 rounded hover:bg-red-50"
+                                                                            >
+                                                                                <IoTrashOutline size={16} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                    <button 
+                                                                        onClick={() => addPair(index, qIndex)}
+                                                                        className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
+                                                                    >
+                                                                        <IoAddOutline size={14} /> إضافة زوج مطابقة
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                     {lesson.questions.length === 0 && (

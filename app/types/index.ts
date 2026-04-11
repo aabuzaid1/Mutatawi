@@ -100,11 +100,17 @@ export interface OpportunityFilters {
     search?: string;
 }
 
-// Course types
+export interface DragDropPair {
+    target: string;
+    draggable: string;
+}
+
 export interface QuizQuestion {
+    type?: 'multiple_choice' | 'drag_drop';
     question: string;
     options: string[];
     correctIndex: number;
+    pairs?: DragDropPair[];
     explanation?: string;
 }
 

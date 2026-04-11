@@ -17,6 +17,8 @@ import {
     IoCloseCircle,
 } from 'react-icons/io5';
 import Link from 'next/link';
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 import { getCourse, getCourseProgress, markLessonComplete } from '@/app/lib/firestore';
 import { Course, CourseProgress } from '@/app/types';
 import { useAuth } from '@/app/hooks/useAuth';
@@ -37,8 +39,9 @@ export default function CourseDetailPage() {
     const [showCelebration, setShowCelebration] = useState(false);
     
     // Quiz state
-    const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+    const [quizAnswers, setQuizAnswers] = useState<Record<number, any>>({});
     const [quizSubmitted, setQuizSubmitted] = useState(false);
+    const [draggedItem, setDraggedItem] = useState<{ qIdx: number, value: string } | null>(null);
 
     useEffect(() => {
         setQuizAnswers({});
@@ -77,9 +80,33 @@ export default function CourseDetailPage() {
         if (!quizSubmitted) return false;
         let correctCount = 0;
         currentLesson.questions.forEach((q, idx) => {
-            if (quizAnswers[idx] === q.correctIndex) correctCount++;
+            if (!q.type || q.type === 'multiple_choice') {
+                if (quizAnswers[idx] === q.correctIndex) correctCount++;
+            } else if (q.type === 'drag_drop' && q.pairs) {
+                const ans = quizAnswers[idx] || {};
+                let allPairsCorrect = true;
+                q.pairs.forEach((pair, pairIdx) => {
+                    if (ans[pairIdx] !== pair.draggable) allPairsCorrect = false;
+                });
+                if (allPairsCorrect) correctCount++;
+            }
         });
         return correctCount === currentLesson.questions.length;
+    };
+
+    const isSubmissionReady = () => {
+        const currentLesson = course?.lessons?.[activeLesson];
+        if (!currentLesson?.questions) return false;
+        for (let i = 0; i < currentLesson.questions.length; i++) {
+            const q = currentLesson.questions[i];
+            if (!q.type || q.type === 'multiple_choice') {
+                if (quizAnswers[i] === undefined) return false;
+            } else if (q.type === 'drag_drop' && q.pairs) {
+                const ans = quizAnswers[i] || {};
+                if (Object.keys(ans).length < q.pairs.length) return false;
+            }
+        }
+        return true;
     };
 
     const handleQuizSubmit = () => {
@@ -95,8 +122,15 @@ export default function CourseDetailPage() {
 
         let correctCount = 0;
         currentLesson.questions.forEach((q, idx) => {
-            if (quizAnswers[idx] === q.correctIndex) {
-                correctCount++;
+            if (!q.type || q.type === 'multiple_choice') {
+                if (quizAnswers[idx] === q.correctIndex) correctCount++;
+            } else if (q.type === 'drag_drop' && q.pairs) {
+                const ans = quizAnswers[idx] || {};
+                let allPairsCorrect = true;
+                q.pairs.forEach((pair, pairIdx) => {
+                    if (ans[pairIdx] !== pair.draggable) allPairsCorrect = false;
+                });
+                if (allPairsCorrect) correctCount++;
             }
         });
         
@@ -104,7 +138,6 @@ export default function CourseDetailPage() {
         if (correctCount === currentLesson.questions.length) {
             toast.success('إجابات صحيحة! أحسنت 🎯');
             if (!isLessonComplete(activeLesson)) {
-                // Auto mark complete optionally, but let's let them click the button or auto 
                 handleMarkComplete(activeLesson);
             }
         } else {
@@ -276,53 +309,172 @@ export default function CourseDetailPage() {
                                         </div>
                                         
                                         <div className="space-y-6">
-                                            {currentLesson.questions?.map((q, qIdx) => (
-                                                <div key={qIdx} className={`bg-white border rounded-xl overflow-hidden transition-all ${quizSubmitted ? (quizAnswers[qIdx] === q.correctIndex ? 'border-green-300 ring-4 ring-green-50' : 'border-red-300 ring-4 ring-red-50') : 'border-slate-200 shadow-sm hover:border-purple-300'}`}>
+                                            {currentLesson.questions?.map((q, qIdx) => {
+                                                const isMC = !q.type || q.type === 'multiple_choice';
+                                                
+                                                // Precalculate drag items to be rendering for this question
+                                                let availableDraggables: string[] = [];
+                                                if (q.type === 'drag_drop' && q.pairs) {
+                                                    // Get all draggable parts, filter out those already matched by student
+                                                    const ans = quizAnswers[qIdx] || {};
+                                                    const usedValues = Object.values(ans);
+                                                    availableDraggables = q.pairs.map(p => p.draggable).filter(d => !usedValues.includes(d as string));
+                                                }
+
+                                                // Determine the question's visual status
+                                                let isQCorrect = false;
+                                                if (quizSubmitted) {
+                                                    if (isMC) {
+                                                        isQCorrect = quizAnswers[qIdx] === q.correctIndex;
+                                                    } else if (q.pairs) {
+                                                        const ans = quizAnswers[qIdx] || {};
+                                                        isQCorrect = true;
+                                                        q.pairs.forEach((pair, pIdx) => {
+                                                            if (ans[pIdx] !== pair.draggable) isQCorrect = false;
+                                                        });
+                                                    }
+                                                }
+
+                                                return (
+                                                <div key={qIdx} className={`bg-white border rounded-xl overflow-hidden transition-all ${quizSubmitted ? (isQCorrect ? 'border-green-300 ring-4 ring-green-50' : 'border-red-300 ring-4 ring-red-50') : 'border-slate-200 shadow-sm hover:border-purple-300'}`} dir="ltr">
                                                     <div className="bg-slate-50 px-5 py-4 border-b border-inherit">
-                                                        <h3 className="font-bold text-slate-800 pr-2 border-r-4 border-purple-500 leading-relaxed text-lg">
-                                                            {qIdx + 1}. {q.question}
+                                                        <h3 className="font-bold text-slate-800 pr-2 border-l-4 border-l-purple-500 leading-relaxed text-lg text-left pl-3 ml-2 border-r-0">
+                                                            <span className="mr-2 text-purple-600">Q{qIdx + 1}.</span> 
+                                                            <Latex>{q.question}</Latex>
                                                         </h3>
                                                     </div>
-                                                    <div className="p-5 space-y-3">
-                                                        {q.options.map((opt, optIdx) => (
-                                                            <button
-                                                                key={optIdx}
-                                                                onClick={() => {
-                                                                    if (!quizSubmitted) {
-                                                                        setQuizAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
-                                                                    }
-                                                                }}
-                                                                className={`w-full text-right px-4 py-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
-                                                                    quizAnswers[qIdx] === optIdx
-                                                                        ? (quizSubmitted 
-                                                                            ? (q.correctIndex === optIdx ? 'bg-green-50 border-green-500 text-green-800 font-bold' : 'bg-red-50 border-red-500 text-red-800 font-bold')
-                                                                            : 'bg-purple-50 border-purple-500 text-purple-800 font-bold shadow-[0_4px_0_0_rgb(168,85,247)] translate-y-[-2px]')
-                                                                        : (quizSubmitted && q.correctIndex === optIdx 
-                                                                            ? 'bg-green-50 border-green-500 text-green-800 font-bold'
-                                                                            : 'bg-white border-slate-100 hover:border-purple-200 hover:bg-slate-50 text-slate-600')
-                                                                } ${quizSubmitted ? 'cursor-default' : 'active:translate-y-[2px] active:shadow-none cursor-pointer'}`}
-                                                            >
-                                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                                                    quizAnswers[qIdx] === optIdx 
-                                                                        ? (quizSubmitted ? (q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-red-500 bg-red-500') : 'border-purple-500 bg-purple-500')
-                                                                        : (quizSubmitted && q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-slate-300')
-                                                                }`}>
-                                                                    {(quizAnswers[qIdx] === optIdx || (quizSubmitted && q.correctIndex === optIdx)) && (
-                                                                        <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
-                                                                    )}
+                                                    <div className="p-5 space-y-4 text-left">
+                                                        {isMC ? (
+                                                            <div className="space-y-3">
+                                                                {q.options.map((opt, optIdx) => (
+                                                                    <button
+                                                                        key={optIdx}
+                                                                        onClick={() => {
+                                                                            if (!quizSubmitted) {
+                                                                                setQuizAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
+                                                                            }
+                                                                        }}
+                                                                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                                                                            quizAnswers[qIdx] === optIdx
+                                                                                ? (quizSubmitted 
+                                                                                    ? (q.correctIndex === optIdx ? 'bg-green-50 border-green-500 text-green-800 font-bold' : 'bg-red-50 border-red-500 text-red-800 font-bold')
+                                                                                    : 'bg-purple-50 border-purple-500 text-purple-800 font-bold shadow-[0_4px_0_0_rgb(168,85,247)] translate-y-[-2px]')
+                                                                                : (quizSubmitted && q.correctIndex === optIdx 
+                                                                                    ? 'bg-green-50 border-green-500 text-green-800 font-bold'
+                                                                                    : 'bg-white border-slate-100 hover:border-purple-200 hover:bg-slate-50 text-slate-600')
+                                                                        } ${quizSubmitted ? 'cursor-default' : 'active:translate-y-[2px] active:shadow-none cursor-pointer'}`}
+                                                                    >
+                                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                                            quizAnswers[qIdx] === optIdx 
+                                                                                ? (quizSubmitted ? (q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-red-500 bg-red-500') : 'border-purple-500 bg-purple-500')
+                                                                                : (quizSubmitted && q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-slate-300')
+                                                                        }`}>
+                                                                            {(quizAnswers[qIdx] === optIdx || (quizSubmitted && q.correctIndex === optIdx)) && (
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="flex-1"><Latex>{opt}</Latex></span>
+                                                                        {quizSubmitted && quizAnswers[qIdx] === optIdx && (
+                                                                            q.correctIndex === optIdx ? <IoCheckmarkCircle className="text-green-500" size={24}/> : <IoCloseCircle className="text-red-500" size={24}/>
+                                                                        )}
+                                                                        {quizSubmitted && quizAnswers[qIdx] !== optIdx && q.correctIndex === optIdx && (
+                                                                            <IoCheckmarkCircle className="text-green-500" size={24}/>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            q.pairs && (
+                                                                <div className="space-y-6 select-none">
+                                                                    <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 min-h-[4rem] items-center">
+                                                                        {availableDraggables.length === 0 && !quizSubmitted && (
+                                                                            <span className="text-slate-400 text-sm mx-auto font-medium">All items placed!</span>
+                                                                        )}
+                                                                        {availableDraggables.map((draggableValue, i) => (
+                                                                            <div
+                                                                                key={i}
+                                                                                draggable={!quizSubmitted}
+                                                                                onDragStart={(e) => {
+                                                                                    e.dataTransfer.setData('text/plain', draggableValue);
+                                                                                    setDraggedItem({ qIdx, value: draggableValue });
+                                                                                }}
+                                                                                onDragEnd={() => setDraggedItem(null)}
+                                                                                className={`px-4 py-2 bg-white border-2 border-purple-400 text-purple-700 font-bold rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:bg-purple-50 transition-all ${quizSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                            >
+                                                                                <Latex>{draggableValue}</Latex>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                        {q.pairs.map((pair, pIdx) => {
+                                                                            const matchAns = (quizAnswers[qIdx] || {})[pIdx];
+                                                                            const isPairCorrect = matchAns === pair.draggable;
+
+                                                                            return (
+                                                                            <div key={pIdx} className="flex flex-col gap-2">
+                                                                                <div className="px-4 py-3 bg-purple-50 border border-purple-100 rounded-lg text-purple-800 font-bold">
+                                                                                    <Latex>{pair.target}</Latex>
+                                                                                </div>
+                                                                                <div 
+                                                                                    onDragOver={(e) => { if (!quizSubmitted) e.preventDefault() }}
+                                                                                    onDrop={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        if (quizSubmitted) return;
+                                                                                        const value = e.dataTransfer.getData('text/plain');
+                                                                                        if (value) {
+                                                                                            setQuizAnswers(prev => {
+                                                                                                const updatedQAns = { ...(prev[qIdx] || {}) };
+                                                                                                updatedQAns[pIdx] = value;
+                                                                                                return { ...prev, [qIdx]: updatedQAns };
+                                                                                            });
+                                                                                        }
+                                                                                    }}
+                                                                                    className={`min-h-[3.5rem] p-2 flex items-center justify-center rounded-lg border-2 border-dashed transition-all ${
+                                                                                        matchAns 
+                                                                                            ? (quizSubmitted ? (isPairCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50') : 'border-purple-400 bg-purple-50/50') 
+                                                                                            : 'border-slate-300 bg-slate-50'
+                                                                                    }`}
+                                                                                >
+                                                                                    {matchAns ? (
+                                                                                        <div className="relative w-full text-center group">
+                                                                                            <span className={`font-bold inline-block px-3 py-1 bg-white rounded shadow-sm border ${quizSubmitted ? (isPairCorrect ? 'text-green-700 border-green-200' : 'text-red-700 border-red-200') : 'text-purple-700 border-purple-200'}`}>
+                                                                                                <Latex>{matchAns}</Latex>
+                                                                                            </span>
+                                                                                            {!quizSubmitted && (
+                                                                                                <button
+                                                                                                    onClick={() => {
+                                                                                                        setQuizAnswers(prev => {
+                                                                                                            const updatedQAns = { ...(prev[qIdx] || {}) };
+                                                                                                            delete updatedQAns[pIdx];
+                                                                                                            return { ...prev, [qIdx]: updatedQAns };
+                                                                                                        });
+                                                                                                    }}
+                                                                                                    className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                                                >
+                                                                                                    <IoCloseCircle size={20} />
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-slate-400 text-sm">Drop here</span>
+                                                                                    )}
+                                                                                </div>
+                                                                                {quizSubmitted && !isPairCorrect && (
+                                                                                    <div className="text-sm bg-green-50 text-green-700 border border-green-200 p-2 rounded flex items-center gap-2">
+                                                                                        <span><IoCheckmarkCircle /> Correct: </span>
+                                                                                        <Latex>{pair.draggable}</Latex>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )})}
+                                                                    </div>
                                                                 </div>
-                                                                <span className="flex-1">{opt}</span>
-                                                                {quizSubmitted && quizAnswers[qIdx] === optIdx && (
-                                                                     q.correctIndex === optIdx ? <IoCheckmarkCircle className="text-green-500" size={24}/> : <IoCloseCircle className="text-red-500" size={24}/>
-                                                                )}
-                                                                {quizSubmitted && quizAnswers[qIdx] !== optIdx && q.correctIndex === optIdx && (
-                                                                     <IoCheckmarkCircle className="text-green-500" size={24}/>
-                                                                )}
-                                                            </button>
-                                                        ))}
+                                                            )
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                         
                                         {!isLessonComplete(activeLesson) && (
@@ -330,7 +482,7 @@ export default function CourseDetailPage() {
                                                 {!quizSubmitted || !isQuizPassed() ? (
                                                     <button
                                                         onClick={handleQuizSubmit}
-                                                        disabled={Object.keys(quizAnswers).length !== (currentLesson.questions?.length || 0)}
+                                                        disabled={!isSubmissionReady()}
                                                         className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-primary-600 text-white rounded-xl font-black text-lg hover:shadow-lg hover:shadow-purple-300/50 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                                                     >
                                                         {quizSubmitted ? 'إعادة المحاولة 🔄' : 'تحقق من الإجابات ✨'}
