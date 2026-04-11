@@ -47,7 +47,7 @@ const levels = [
 
 interface LessonForm {
     title: string;
-    type: 'video' | 'activity';
+    type: 'video' | 'activity' | 'quiz';
     videoSource: 'youtube' | 'upload';
     youtubeVideoId: string;
     videoUrl: string;
