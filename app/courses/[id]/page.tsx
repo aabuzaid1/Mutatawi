@@ -13,6 +13,8 @@ import {
     IoTrophyOutline,
     IoLockClosedOutline,
     IoDocumentTextOutline,
+    IoExtensionPuzzleOutline,
+    IoCloseCircle,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { getCourse, getCourseProgress, markLessonComplete } from '@/app/lib/firestore';
@@ -33,6 +35,15 @@ export default function CourseDetailPage() {
     const [activeLesson, setActiveLesson] = useState(0);
     const [markingLesson, setMarkingLesson] = useState<number | null>(null);
     const [showCelebration, setShowCelebration] = useState(false);
+    
+    // Quiz state
+    const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+    const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+    useEffect(() => {
+        setQuizAnswers({});
+        setQuizSubmitted(false);
+    }, [activeLesson]);
 
     const loadData = useCallback(async () => {
         try {
@@ -59,6 +70,47 @@ export default function CourseDetailPage() {
 
     const completedCount = progress?.completedLessons?.length || 0;
     const progressPercent = course ? Math.round((completedCount / course.totalLessons) * 100) : 0;
+
+    const isQuizPassed = () => {
+        const currentLesson = course?.lessons?.[activeLesson];
+        if (!currentLesson || currentLesson.type !== 'quiz' || !currentLesson.questions) return false;
+        if (!quizSubmitted) return false;
+        let correctCount = 0;
+        currentLesson.questions.forEach((q, idx) => {
+            if (quizAnswers[idx] === q.correctIndex) correctCount++;
+        });
+        return correctCount === currentLesson.questions.length;
+    };
+
+    const handleQuizSubmit = () => {
+        const currentLesson = course?.lessons?.[activeLesson];
+        if (!currentLesson || currentLesson.type !== 'quiz' || !currentLesson.questions) return;
+        
+        if (quizSubmitted) {
+            // Reset for retry
+            setQuizAnswers({});
+            setQuizSubmitted(false);
+            return;
+        }
+
+        let correctCount = 0;
+        currentLesson.questions.forEach((q, idx) => {
+            if (quizAnswers[idx] === q.correctIndex) {
+                correctCount++;
+            }
+        });
+        
+        setQuizSubmitted(true);
+        if (correctCount === currentLesson.questions.length) {
+            toast.success('إجابات صحيحة! أحسنت 🎯');
+            if (!isLessonComplete(activeLesson)) {
+                // Auto mark complete optionally, but let's let them click the button or auto 
+                handleMarkComplete(activeLesson);
+            }
+        } else {
+            toast.error(`لقد أجبت على ${correctCount} من ${currentLesson.questions.length} بشكل صحيح. حاول مرة أخرى!`);
+        }
+    };
 
     const handleMarkComplete = async (lessonIndex: number) => {
         if (!user) {
@@ -208,6 +260,100 @@ export default function CourseDetailPage() {
                                         </div>
                                     )}
                                 </div>
+                            ) : currentLesson?.type === 'quiz' ? (
+                                <div className="bg-white rounded-2xl overflow-hidden shadow-xl mb-6 border border-purple-100 p-6 md:p-10 text-slate-800 relative bg-gradient-to-br from-white to-purple-50/30">
+                                    <div className="absolute top-0 right-0 w-48 h-48 bg-purple-200/40 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-200/30 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none"></div>
+                                    <div className="relative z-10">
+                                        <div className="mb-8 text-center flex flex-col items-center">
+                                            <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-purple-200">
+                                                <IoExtensionPuzzleOutline size={32} />
+                                            </div>
+                                            <h2 className="text-3xl font-black text-purple-800 mb-2">
+                                                {currentLesson.title}
+                                            </h2>
+                                            <p className="text-slate-500 font-medium tracking-wide">اختبر معلوماتك لفتح الدرس التالي</p>
+                                        </div>
+                                        
+                                        <div className="space-y-6">
+                                            {currentLesson.questions?.map((q, qIdx) => (
+                                                <div key={qIdx} className={`bg-white border rounded-xl overflow-hidden transition-all ${quizSubmitted ? (quizAnswers[qIdx] === q.correctIndex ? 'border-green-300 ring-4 ring-green-50' : 'border-red-300 ring-4 ring-red-50') : 'border-slate-200 shadow-sm hover:border-purple-300'}`}>
+                                                    <div className="bg-slate-50 px-5 py-4 border-b border-inherit">
+                                                        <h3 className="font-bold text-slate-800 pr-2 border-r-4 border-purple-500 leading-relaxed text-lg">
+                                                            {qIdx + 1}. {q.question}
+                                                        </h3>
+                                                    </div>
+                                                    <div className="p-5 space-y-3">
+                                                        {q.options.map((opt, optIdx) => (
+                                                            <button
+                                                                key={optIdx}
+                                                                onClick={() => {
+                                                                    if (!quizSubmitted) {
+                                                                        setQuizAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
+                                                                    }
+                                                                }}
+                                                                className={`w-full text-right px-4 py-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                                                                    quizAnswers[qIdx] === optIdx
+                                                                        ? (quizSubmitted 
+                                                                            ? (q.correctIndex === optIdx ? 'bg-green-50 border-green-500 text-green-800 font-bold' : 'bg-red-50 border-red-500 text-red-800 font-bold')
+                                                                            : 'bg-purple-50 border-purple-500 text-purple-800 font-bold shadow-[0_4px_0_0_rgb(168,85,247)] translate-y-[-2px]')
+                                                                        : (quizSubmitted && q.correctIndex === optIdx 
+                                                                            ? 'bg-green-50 border-green-500 text-green-800 font-bold'
+                                                                            : 'bg-white border-slate-100 hover:border-purple-200 hover:bg-slate-50 text-slate-600')
+                                                                } ${quizSubmitted ? 'cursor-default' : 'active:translate-y-[2px] active:shadow-none cursor-pointer'}`}
+                                                            >
+                                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                                                    quizAnswers[qIdx] === optIdx 
+                                                                        ? (quizSubmitted ? (q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-red-500 bg-red-500') : 'border-purple-500 bg-purple-500')
+                                                                        : (quizSubmitted && q.correctIndex === optIdx ? 'border-green-500 bg-green-500' : 'border-slate-300')
+                                                                }`}>
+                                                                    {(quizAnswers[qIdx] === optIdx || (quizSubmitted && q.correctIndex === optIdx)) && (
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                                                                    )}
+                                                                </div>
+                                                                <span className="flex-1">{opt}</span>
+                                                                {quizSubmitted && quizAnswers[qIdx] === optIdx && (
+                                                                     q.correctIndex === optIdx ? <IoCheckmarkCircle className="text-green-500" size={24}/> : <IoCloseCircle className="text-red-500" size={24}/>
+                                                                )}
+                                                                {quizSubmitted && quizAnswers[qIdx] !== optIdx && q.correctIndex === optIdx && (
+                                                                     <IoCheckmarkCircle className="text-green-500" size={24}/>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        {!isLessonComplete(activeLesson) && (
+                                            <div className="mt-8 text-center pt-8 border-t border-purple-100/50">
+                                                {!quizSubmitted || !isQuizPassed() ? (
+                                                    <button
+                                                        onClick={handleQuizSubmit}
+                                                        disabled={Object.keys(quizAnswers).length !== (currentLesson.questions?.length || 0)}
+                                                        className="px-8 py-3.5 bg-gradient-to-r from-purple-600 to-primary-600 text-white rounded-xl font-black text-lg hover:shadow-lg hover:shadow-purple-300/50 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                                                    >
+                                                        {quizSubmitted ? 'إعادة المحاولة 🔄' : 'تحقق من الإجابات ✨'}
+                                                    </button>
+                                                ) : (
+                                                    <div className="bg-green-100 text-green-800 p-5 rounded-xl font-bold flex flex-col items-center justify-center gap-2 border border-green-200">
+                                                        <span className="text-green-600 text-4xl mb-1">🎯</span>
+                                                        <p className="text-lg">ممتاز! كافة إجاباتك صحيحة.</p>
+                                                        <p className="text-sm font-medium opacity-80">تم إكمال الدرس بنجاح.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {isLessonComplete(activeLesson) && (
+                                            <div className="mt-8 text-center pt-8 border-t border-purple-100/50">
+                                                <div className="bg-green-50 text-green-700 p-4 rounded-xl font-bold border border-green-200 inline-flex items-center gap-2">
+                                                    <IoCheckmarkCircle size={24} />
+                                                    هذا الاختبار مكتمل
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="bg-black rounded-2xl overflow-hidden shadow-xl mb-6 aspect-video">
                                     {currentLesson ? (
@@ -252,7 +398,7 @@ export default function CourseDetailPage() {
                                         {user && (
                                             <button
                                                 onClick={() => handleMarkComplete(activeLesson)}
-                                                disabled={markingLesson === activeLesson}
+                                                disabled={markingLesson === activeLesson || (currentLesson.type === 'quiz' && !isLessonComplete(activeLesson) && !isQuizPassed())}
                                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${isLessonComplete(activeLesson)
                                                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                                         : 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-200'
@@ -369,11 +515,13 @@ export default function CourseDetailPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <p className={`text-sm font-medium truncate ${activeLesson === index ? 'text-primary-700' : 'text-slate-700'
                                                             }`}>
-                                                            {lesson.type === 'activity' ? '📋 ' : ''}{lesson.title}
+                                                            {lesson.type === 'activity' ? '📋 ' : lesson.type === 'quiz' ? '🧩 ' : ''}{lesson.title}
                                                         </p>
                                                         <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                                                             {lesson.type === 'activity' ? (
                                                                 <><IoDocumentTextOutline size={12} /> نشاط تطبيقي</>
+                                                            ) : lesson.type === 'quiz' ? (
+                                                                <><IoExtensionPuzzleOutline size={12} /> اختبار معلومات</>
                                                             ) : (
                                                                 <><IoTimeOutline size={12} /> {lesson.duration}</>
                                                             )}
@@ -384,6 +532,8 @@ export default function CourseDetailPage() {
                                                     {activeLesson === index && (
                                                         lesson.type === 'activity' ?
                                                             <IoDocumentTextOutline className="text-primary-500 flex-shrink-0" size={20} /> :
+                                                        lesson.type === 'quiz' ?
+                                                            <IoExtensionPuzzleOutline className="text-primary-500 flex-shrink-0" size={20} /> :
                                                             <IoPlayCircleOutline className="text-primary-500 flex-shrink-0" size={20} />
                                                     )}
                                                 </button>

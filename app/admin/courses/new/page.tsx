@@ -15,13 +15,14 @@ import {
     IoImageOutline,
     IoCloudUploadOutline,
     IoCloseOutline,
+    IoExtensionPuzzleOutline,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { createCourse } from '@/app/lib/firestore';
 import { uploadCourseThumbnail, compressImage, uploadCourseVideo } from '@/app/lib/storage';
-import { Lesson, CourseCategory } from '@/app/types';
+import { Lesson, CourseCategory, QuizQuestion } from '@/app/types';
 import Navbar from '@/app/components/layout/Navbar';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -56,6 +57,7 @@ interface LessonForm {
     activityImageFile?: File | null;
     activityImageUrl: string;
     activityText: string;
+    questions: QuizQuestion[];
     duration: string;
     section: string;
 }
@@ -69,6 +71,7 @@ const emptyLesson: LessonForm = {
     activityImageSource: 'upload',
     activityImageUrl: '',
     activityText: '',
+    questions: [],
     duration: '',
     section: '',
 };
@@ -150,6 +153,40 @@ export default function NewCoursePage() {
         setLessons(updated);
     };
 
+    const addQuestion = (lessonIndex: number) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions.push({ question: '', options: ['', ''], correctIndex: 0 });
+        setLessons(updated);
+    };
+    const updateQuestion = (lessonIndex: number, qIndex: number, field: string, value: any) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex] = { ...updated[lessonIndex].questions[qIndex], [field]: value };
+        setLessons(updated);
+    };
+    const updateOption = (lessonIndex: number, qIndex: number, optIndex: number, value: string) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex].options[optIndex] = value;
+        setLessons(updated);
+    };
+    const addOption = (lessonIndex: number, qIndex: number) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex].options.push('');
+        setLessons(updated);
+    };
+    const removeOption = (lessonIndex: number, qIndex: number, optIndex: number) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions[qIndex].options.splice(optIndex, 1);
+        if (updated[lessonIndex].questions[qIndex].correctIndex >= updated[lessonIndex].questions[qIndex].options.length) {
+            updated[lessonIndex].questions[qIndex].correctIndex = 0;
+        }
+        setLessons(updated);
+    }
+    const removeQuestion = (lessonIndex: number, qIndex: number) => {
+        const updated = [...lessons];
+        updated[lessonIndex].questions.splice(qIndex, 1);
+        setLessons(updated);
+    };
+
     const handleSave = async (publish: boolean) => {
         if (!title.trim()) { toast.error('أدخل عنوان الكورس'); return; }
         if (!description.trim()) { toast.error('أدخل وصف الكورس'); return; }
@@ -215,7 +252,9 @@ export default function NewCoursePage() {
                 type: l.type,
                 ...(l.type === 'video' 
                       ? (l.videoSource === 'youtube' ? { youtubeVideoId: l.youtubeVideoId } : { videoUrl: l.videoUrl }) 
-                      : { activityImageUrl: l.activityImageUrl, activityText: l.activityText }),
+                      : l.type === 'activity' 
+                      ? { activityImageUrl: l.activityImageUrl, activityText: l.activityText }
+                      : { questions: l.questions.filter(q => q.question.trim().length > 0) }),
                 duration: l.duration || '0:00',
                 order: i + 1,
                 section: l.section || undefined,
@@ -458,7 +497,7 @@ export default function NewCoursePage() {
                                                 placeholder="عنوان الدرس"
                                                 className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary-500 outline-none text-sm"
                                             />
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-col sm:flex-row gap-2">
                                                 <button
                                                     onClick={() => updateLesson(index, 'type', 'video')}
                                                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
@@ -480,6 +519,17 @@ export default function NewCoursePage() {
                                                 >
                                                     <IoDocumentTextOutline size={16} />
                                                     نشاط
+                                                </button>
+                                                <button
+                                                    onClick={() => updateLesson(index, 'type', 'quiz')}
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                                                        lesson.type === 'quiz'
+                                                            ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
+                                                            : 'bg-white text-slate-500 border border-slate-200'
+                                                    }`}
+                                                >
+                                                    <IoExtensionPuzzleOutline size={16} />
+                                                    اختبار
                                                 </button>
                                             </div>
                                         </div>
@@ -606,6 +656,79 @@ export default function NewCoursePage() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                </div>
+                                            )}
+
+                                            {lesson.type === 'quiz' && (
+                                                <div className="sm:col-span-3 space-y-4 p-4 bg-purple-50/50 rounded-xl border border-purple-100 mb-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="text-sm font-bold text-purple-800">أسئلة الاختبار</h4>
+                                                        <button 
+                                                            onClick={() => addQuestion(index)}
+                                                            className="text-xs flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg hover:bg-purple-200 transition-all font-bold"
+                                                        >
+                                                            <IoAddOutline size={14} /> إضافة سؤال
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {lesson.questions.map((q, qIndex) => (
+                                                        <div key={qIndex} className="bg-white p-4 rounded-lg border border-slate-200 space-y-3 relative shadow-sm">
+                                                            <button 
+                                                                onClick={() => removeQuestion(index, qIndex)}
+                                                                className="absolute top-3 left-3 text-red-400 hover:text-red-500 p-1 bg-red-50/50 rounded hover:bg-red-50 transition-all"
+                                                            >
+                                                                <IoTrashOutline size={16} />
+                                                            </button>
+                                                            <div>
+                                                                <label className="block text-xs font-bold text-slate-500 mb-1.5">نص السؤال {qIndex + 1}</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={q.question}
+                                                                    onChange={(e) => updateQuestion(index, qIndex, 'question', e.target.value)}
+                                                                    placeholder="اكتب السؤال هنا..."
+                                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-purple-500 outline-none text-sm font-bold"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2.5 pt-2 pl-4 border-r-2 border-purple-100 pr-2">
+                                                                {q.options.map((opt, optIndex) => (
+                                                                    <div key={optIndex} className="flex items-center gap-2">
+                                                                        <div className="flex items-center justify-center p-1 cursor-pointer">
+                                                                            <input 
+                                                                                type="radio" 
+                                                                                name={`correct-${index}-${qIndex}`}
+                                                                                checked={q.correctIndex === optIndex}
+                                                                                onChange={() => updateQuestion(index, qIndex, 'correctIndex', optIndex)}
+                                                                                className="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+                                                                            />
+                                                                        </div>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={opt}
+                                                                            onChange={(e) => updateOption(index, qIndex, optIndex, e.target.value)}
+                                                                            placeholder={`الخيار ${optIndex + 1}`}
+                                                                            className={`flex-1 px-3 py-1.5 rounded-lg border text-sm outline-none transition-all ${q.correctIndex === optIndex ? 'border-purple-400 bg-purple-50/30' : 'border-slate-200 focus:border-purple-300'}`}
+                                                                        />
+                                                                        <button 
+                                                                            onClick={() => removeOption(index, qIndex, optIndex)}
+                                                                            disabled={q.options.length <= 2}
+                                                                            className="text-slate-400 hover:text-red-500 disabled:opacity-30 p-1"
+                                                                        >
+                                                                            <IoCloseOutline size={18} />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                                <button 
+                                                                    onClick={() => addOption(index, qIndex)}
+                                                                    className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
+                                                                >
+                                                                    <IoAddOutline size={14} /> إضافة خيار
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {lesson.questions.length === 0 && (
+                                                        <p className="text-xs text-center text-slate-400 py-6 font-medium">لا توجد أسئلة، اضغط على <b>إضافة سؤال</b> من الأعلى للبدء.</p>
+                                                    )}
                                                 </div>
                                             )}
                                             <input

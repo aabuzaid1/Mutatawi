@@ -101,13 +101,21 @@ export interface OpportunityFilters {
 }
 
 // Course types
+export interface QuizQuestion {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation?: string;
+}
+
 export interface Lesson {
     title: string;
-    type: 'video' | 'activity';
+    type: 'video' | 'activity' | 'quiz';
     youtubeVideoId?: string;      // For video lessons
     videoUrl?: string;            // For uploaded video lessons
     activityImageUrl?: string;    // For activity lessons (image URL)
     activityText?: string;        // Text content for activity
+    questions?: QuizQuestion[];   // For quiz lessons
     duration: string; // e.g. "12:34"
     order: number;
     section?: string;             // Section name (e.g., "Gmail", "Google Calendar")
