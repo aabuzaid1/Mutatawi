@@ -9,6 +9,7 @@ import {
     IoTimeOutline,
     IoSchoolOutline,
     IoLayersOutline,
+    IoChevronDownOutline,
 } from 'react-icons/io5';
 import { getCourses } from '@/app/lib/firestore';
 import { Course, CourseCategory } from '@/app/types';
@@ -16,8 +17,14 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 
-const categories: { label: string; value: CourseCategory | 'all' }[] = [
+const generalCategories: { label: string; value: CourseCategory | 'all' }[] = [
     { label: 'الكل', value: 'all' },
+    { label: '🌱 تنمية شخصية', value: 'تنمية شخصية' },
+    { label: '💻 تقنية', value: 'تقنية' },
+    { label: '📚 أخرى', value: 'أخرى' },
+];
+
+const universities: { label: string; value: CourseCategory }[] = [
     { label: '🏫 جامعة العلوم التطبيقية', value: 'جامعة العلوم التطبيقية' },
     { label: '🏫 جامعة الزيتونة', value: 'جامعة الزيتونة' },
     { label: '🏫 الجامعة الأردنية', value: 'الجامعة الأردنية' },
@@ -27,9 +34,6 @@ const categories: { label: string; value: CourseCategory | 'all' }[] = [
     { label: '🏫 جامعة عمان الأهلية', value: 'جامعة عمان الأهلية' },
     { label: '🏫 جامعة الأميرة سمية', value: 'جامعة الأميرة سمية' },
     { label: '🏫 جامعة فيلادلفيا', value: 'جامعة فيلادلفيا' },
-    { label: '🌱 تنمية شخصية', value: 'تنمية شخصية' },
-    { label: '💻 تقنية', value: 'تقنية' },
-    { label: '📚 أخرى', value: 'أخرى' },
 ];
 
 const levelColors: Record<string, string> = {
@@ -112,13 +116,13 @@ export default function CoursesPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.15 }}
-                        className="flex flex-wrap justify-center gap-2 mb-10"
+                        className="flex flex-wrap items-center justify-center gap-3 mb-10"
                     >
-                        {categories.map((cat) => (
+                        {generalCategories.map((cat) => (
                             <button
                                 key={cat.value}
                                 onClick={() => setActiveCategory(cat.value)}
-                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeCategory === cat.value
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${activeCategory === cat.value
                                         ? 'bg-primary-600 text-white shadow-md shadow-primary-200'
                                         : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                                     }`}
@@ -126,6 +130,29 @@ export default function CoursesPage() {
                                 {cat.label}
                             </button>
                         ))}
+
+                        <div className="relative">
+                            <select
+                                value={universities.some(u => u.value === activeCategory) ? activeCategory : ''}
+                                onChange={(e) => setActiveCategory(e.target.value as CourseCategory)}
+                                className={`appearance-none pl-10 pr-4 py-2 rounded-full text-sm font-medium transition-all outline-none border cursor-pointer max-w-[200px] sm:max-w-none text-ellipsis overflow-hidden whitespace-nowrap ${
+                                    universities.some(u => u.value === activeCategory)
+                                        ? 'bg-primary-600 text-white shadow-md shadow-primary-200 border-primary-600'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
+                                }`}
+                                dir="rtl"
+                            >
+                                <option value="" disabled className="text-slate-500">🏫 الجامعات...</option>
+                                {universities.map(u => (
+                                    <option key={u.value} value={u.value} className="text-slate-800">
+                                        {u.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <IoChevronDownOutline className={`absolute left-4 top-1/2 -translate-y-1/2 text-sm pointer-events-none transition-transform ${
+                                universities.some(u => u.value === activeCategory) ? 'text-white' : 'text-slate-400'
+                            }`} />
+                        </div>
                     </motion.div>
 
                     {/* Courses Grid */}
