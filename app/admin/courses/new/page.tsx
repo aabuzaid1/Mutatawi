@@ -104,6 +104,10 @@ export default function NewCoursePage() {
     const [lessons, setLessons] = useState<LessonForm[]>([{ ...emptyLesson }]);
     const [saving, setSaving] = useState(false);
 
+    // JSON Import State
+    const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+    const [jsonInput, setJsonInput] = useState('');
+
     const handleFileSelect = (file: File) => {
         if (!file.type.startsWith('image/')) {
             toast.error('يرجى اختيار ملف صورة');
@@ -207,11 +211,54 @@ export default function NewCoursePage() {
         setLessons(updated);
     };
 
+    const handleJsonImport = () => {
+        try {
+            if (!jsonInput.trim()) {
+                toast.error('الرجاء إدخال كود JSON');
+                return;
+            }
+            const parsed = JSON.parse(jsonInput);
+
+            if (parsed.title) setTitle(parsed.title);
+            if (parsed.description) setDescription(parsed.description);
+            if (parsed.category) setCategory(parsed.category);
+            if (parsed.level) setLevel(parsed.level);
+            if (parsed.thumbnail) setThumbnail(parsed.thumbnail);
+
+            if (parsed.lessons && Array.isArray(parsed.lessons)) {
+                const newLessons = parsed.lessons.map((l: any) => ({
+                    ...emptyLesson,
+                    ...l,
+                    youtubeVideoId: l.youtubeVideoId || l.youtubeId || l.id || '',
+                    type: l.type || 'video',
+                    videoSource: l.videoSource || (l.youtubeId || l.youtubeVideoId || l.id ? 'youtube' : 'upload'),
+                    questions: l.questions ? l.questions.map((q: any) => ({
+                        type: 'multiple_choice',
+                        question: '',
+                        options: ['', ''],
+                        correctIndex: 0,
+                        pairs: [],
+                        ...q
+                    })) : []
+                }));
+                // Ensure at least one lesson if the array is empty
+                setLessons(newLessons.length > 0 ? newLessons : [{ ...emptyLesson }]);
+            }
+
+            setIsJsonModalOpen(false);
+            setJsonInput('');
+            toast.success('تم استيراد الكورس بنجاح');
+        } catch (error) {
+            console.error('JSON Parse Error:', error);
+            toast.error('صيغة JSON غير صحيحة');
+        }
+    };
+
     const handleSave = async (publish: boolean) => {
         if (!title.trim()) { toast.error('أدخل عنوان الكورس'); return; }
         if (!description.trim()) { toast.error('أدخل وصف الكورس'); return; }
         if (lessons.length === 0) { toast.error('أضف درس واحد على الأقل'); return; }
-        
+
         const validLessons = lessons.filter(l => l.title.trim());
         if (validLessons.length === 0) { toast.error('أضف عنوان لدرس واحد على الأقل'); return; }
 
@@ -249,7 +296,7 @@ export default function NewCoursePage() {
                         return;
                     }
                 }
-                
+
                 if (l.type === 'activity' && l.activityImageSource === 'upload' && l.activityImageFile) {
                     toast.loading(`جاري رفع صورة نشاط درس ${i + 1}...`, { id: 'uploading-image' });
                     try {
@@ -270,11 +317,11 @@ export default function NewCoursePage() {
             const courseLessons: Lesson[] = validLessons.map((l, i) => ({
                 title: l.title,
                 type: l.type,
-                ...(l.type === 'video' 
-                      ? (l.videoSource === 'youtube' ? { youtubeVideoId: l.youtubeVideoId } : { videoUrl: l.videoUrl }) 
-                      : l.type === 'activity' 
-                      ? { activityImageUrl: l.activityImageUrl, activityText: l.activityText }
-                      : { questions: l.questions.filter(q => q.question.trim().length > 0) }),
+                ...(l.type === 'video'
+                    ? (l.videoSource === 'youtube' ? { youtubeVideoId: l.youtubeVideoId } : { videoUrl: l.videoUrl })
+                    : l.type === 'activity'
+                        ? { activityImageUrl: l.activityImageUrl, activityText: l.activityText }
+                        : { questions: l.questions.filter(q => q.question.trim().length > 0) }),
                 duration: l.duration || '0:00',
                 order: i + 1,
                 section: l.section || undefined,
@@ -330,7 +377,7 @@ export default function NewCoursePage() {
             <main className="min-h-screen bg-slate-50 pt-24 pb-16">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                         <div>
                             <Link href="/admin/courses" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-primary-600 font-medium mb-2 transition-colors">
                                 <IoArrowBackOutline size={16} />
@@ -338,6 +385,13 @@ export default function NewCoursePage() {
                             </Link>
                             <h1 className="text-2xl font-black text-slate-900">إضافة كورس جديد</h1>
                         </div>
+                        <button
+                            onClick={() => setIsJsonModalOpen(true)}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-all shadow-sm"
+                        >
+                            <IoDocumentTextOutline size={18} />
+                            استيراد كورس (JSON)
+                        </button>
                     </div>
 
                     {/* Course Info Form */}
@@ -519,33 +573,30 @@ export default function NewCoursePage() {
                                             <div className="flex flex-col sm:flex-row gap-2">
                                                 <button
                                                     onClick={() => updateLesson(index, 'type', 'video')}
-                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                                                        lesson.type === 'video'
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${lesson.type === 'video'
                                                             ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
                                                             : 'bg-white text-slate-500 border border-slate-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <IoVideocamOutline size={16} />
                                                     فيديو
                                                 </button>
                                                 <button
                                                     onClick={() => updateLesson(index, 'type', 'activity')}
-                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                                                        lesson.type === 'activity'
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${lesson.type === 'activity'
                                                             ? 'bg-green-100 text-green-700 border-2 border-green-300'
                                                             : 'bg-white text-slate-500 border border-slate-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <IoDocumentTextOutline size={16} />
                                                     نشاط
                                                 </button>
                                                 <button
                                                     onClick={() => updateLesson(index, 'type', 'quiz')}
-                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                                                        lesson.type === 'quiz'
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${lesson.type === 'quiz'
                                                             ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
                                                             : 'bg-white text-slate-500 border border-slate-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <IoExtensionPuzzleOutline size={16} />
                                                     اختبار
@@ -609,7 +660,7 @@ export default function NewCoursePage() {
                                                     </div>
                                                 )
                                             ) : null}
-                                            
+
                                             {lesson.type === 'activity' && (
                                                 <div className="sm:col-span-3 space-y-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
                                                     <div>
@@ -682,14 +733,14 @@ export default function NewCoursePage() {
                                                 <div className="sm:col-span-3 space-y-4 p-4 bg-purple-50/50 rounded-xl border border-purple-100 mb-2">
                                                     <div className="flex items-center justify-between">
                                                         <h4 className="text-sm font-bold text-purple-800">أسئلة الاختبار</h4>
-                                                        <button 
+                                                        <button
                                                             onClick={() => addQuestion(index)}
                                                             className="text-xs flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg hover:bg-purple-200 transition-all font-bold"
                                                         >
                                                             <IoAddOutline size={14} /> إضافة سؤال
                                                         </button>
                                                     </div>
-                                                    
+
                                                     {lesson.questions.map((q, qIndex) => (
                                                         <div key={qIndex} className="bg-white p-4 rounded-lg border border-slate-200 space-y-3 relative shadow-sm">
                                                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
@@ -703,7 +754,7 @@ export default function NewCoursePage() {
                                                                         <option value="multiple_choice">اختيار من متعدد</option>
                                                                         <option value="drag_drop">سحب وإفلات (مطابقة)</option>
                                                                     </select>
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => removeQuestion(index, qIndex)}
                                                                         className="text-red-400 hover:text-red-500 p-1.5 bg-red-50/50 rounded hover:bg-red-50 transition-all"
                                                                         title="حذف السؤال"
@@ -736,8 +787,8 @@ export default function NewCoursePage() {
                                                                         <div key={optIndex} className="flex flex-col gap-1">
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="flex items-center justify-center p-1 cursor-pointer">
-                                                                                    <input 
-                                                                                        type="radio" 
+                                                                                    <input
+                                                                                        type="radio"
                                                                                         name={`correct-${index}-${qIndex}`}
                                                                                         checked={q.correctIndex === optIndex}
                                                                                         onChange={() => updateQuestion(index, qIndex, 'correctIndex', optIndex)}
@@ -753,7 +804,7 @@ export default function NewCoursePage() {
                                                                                     className={`flex-1 px-3 py-1.5 rounded-lg border text-sm outline-none transition-all font-mono text-left ${q.correctIndex === optIndex ? 'border-purple-400 bg-purple-50/30' : 'border-slate-200 focus:border-purple-300'}`}
                                                                                     dir="ltr"
                                                                                 />
-                                                                                <button 
+                                                                                <button
                                                                                     onClick={() => removeOption(index, qIndex, optIndex)}
                                                                                     disabled={(q.options?.length || 0) <= 2}
                                                                                     className="text-slate-400 hover:text-red-500 disabled:opacity-30 p-1"
@@ -768,7 +819,7 @@ export default function NewCoursePage() {
                                                                             )}
                                                                         </div>
                                                                     ))}
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => addOption(index, qIndex)}
                                                                         className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
                                                                     >
@@ -800,7 +851,7 @@ export default function NewCoursePage() {
                                                                                 className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 focus:border-purple-300 text-sm outline-none font-mono text-left bg-purple-50"
                                                                                 dir="ltr"
                                                                             />
-                                                                            <button 
+                                                                            <button
                                                                                 onClick={() => removePair(index, qIndex, pIndex)}
                                                                                 className="text-slate-400 hover:text-red-500 p-1 self-end sm:self-center bg-slate-100 rounded hover:bg-red-50"
                                                                             >
@@ -808,7 +859,7 @@ export default function NewCoursePage() {
                                                                             </button>
                                                                         </div>
                                                                     ))}
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => addPair(index, qIndex)}
                                                                         className="text-xs text-purple-600 font-bold hover:bg-purple-50 px-2 py-1 rounded transition-all mt-1 flex items-center gap-1 w-fit"
                                                                     >
@@ -865,6 +916,58 @@ export default function NewCoursePage() {
                         </button>
                     </div>
                 </div>
+
+                {/* JSON Import Modal */}
+                {isJsonModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <IoDocumentTextOutline size={20} className="text-primary-600" />
+                                    استيراد كورس بواسطة JSON
+                                </h3>
+                                <button
+                                    onClick={() => setIsJsonModalOpen(false)}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                >
+                                    <IoCloseOutline size={24} />
+                                </button>
+                            </div>
+                            <div className="p-5 flex-1 overflow-y-auto bg-slate-50">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">أدخل كود JSON هنا:</label>
+                                <textarea
+                                    value={jsonInput}
+                                    onChange={(e) => setJsonInput(e.target.value)}
+                                    className="w-full h-64 p-4 font-mono text-sm border-2 border-slate-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none resize-none"
+                                    placeholder='{"title": "كورس جديد", "lessons": [{"title": "الدرس الأول", "type": "video", ...}]}'
+                                    dir="ltr"
+                                ></textarea>
+                                <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-800 leading-relaxed">
+                                    <p className="font-bold mb-1">تعليمات الاستيراد:</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        <li>يجب أن يكون الكود بصيغة JSON صحيحة بالكامل.</li>
+                                        <li>يمكنك تمرير <code>title</code> و <code>description</code> و <code>lessons</code> كجزء من الكود.</li>
+                                        <li>ملاحظة هامة: سيتم حفظ البيانات الجديدة ومسح البيانات القديمة المسجلة حالياً بالأسفل.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="p-5 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
+                                <button
+                                    onClick={() => setIsJsonModalOpen(false)}
+                                    className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    onClick={handleJsonImport}
+                                    className="px-5 py-2.5 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-all shadow-md shadow-primary-200"
+                                >
+                                    تأكيد الاستيراد
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </>
     );
@@ -872,7 +975,7 @@ export default function NewCoursePage() {
 
 function calculateTotalDuration(lessons: { type?: string, duration?: string, questions?: any[] }[]): string {
     let totalSeconds = 0;
-    
+
     lessons.forEach(l => {
         let lessonSeconds = 0;
         if (l.duration && l.duration.includes(':')) {
@@ -883,7 +986,7 @@ function calculateTotalDuration(lessons: { type?: string, duration?: string, que
                 lessonSeconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
             }
         }
-        
+
         if (lessonSeconds > 0) {
             totalSeconds += lessonSeconds;
         } else if (l.type === 'quiz') {
@@ -895,7 +998,7 @@ function calculateTotalDuration(lessons: { type?: string, duration?: string, que
 
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.ceil((totalSeconds % 3600) / 60);
-    
+
     if (hours > 0 && minutes > 0) return `${hours} ساعة و ${minutes} دقيقة`;
     if (hours > 0) return `${hours} ساعة`;
     return `${minutes} دقيقة`;
