@@ -25,13 +25,13 @@ import { AITokenAccount, TokenTransaction, TokenTransactionType } from '../types
 
 // ── Constants ──────────────────────────────────
 export const INTERNAL_TO_REAL_RATIO = 50;
-export const INITIAL_TOKENS = 25000;
+export const INITIAL_TOKENS = 50000;
 export const MAX_TOKENS_PER_REQUEST = 2000;
 export const MAX_DAILY_REQUESTS = 20;
 export const LOW_BALANCE_THRESHOLD = 1000;
 
 export const TOKEN_REWARDS = {
-    initial: 25000,
+    initial: 50000,
     volunteer: 1000,
     course: 1000,
     referral: 500,
@@ -98,6 +98,7 @@ export async function initializeTokenAccount(
         remainingTokens: INITIAL_TOKENS,
         dailyRequestCount: 0,
         dailyResetDate: getTodayString(),
+        lastRenewalDate: getTodayString(),
         lastUsed: null,
         createdAt: serverTimestamp(),
         suspended: false,
@@ -124,15 +125,48 @@ export async function getTokenBalance(userId: string): Promise<AITokenAccount | 
     if (!snap.exists()) return null;
     
     const data = snap.data();
+    const today = new Date();
+    const todayStr = getTodayString();
     
-    // Reset daily count if new day
-    if (data.dailyResetDate !== getTodayString()) {
-        await updateDoc(accountRef, {
-            dailyRequestCount: 0,
-            dailyResetDate: getTodayString(),
-        });
-        data.dailyRequestCount = 0;
-        data.dailyResetDate = getTodayString();
+    // Check for weekly renewal (every 7 days)
+    const lastRenewal = data.lastRenewalDate ? new Date(data.lastRenewalDate) : (data.createdAt?.toDate?.() || today);
+    const daysSinceRenewal = Math.floor((today.getTime() - lastRenewal.getTime()) / (1000 * 60 * 60 * 24));
+
+    let needsRenewal = false;
+    let renewalAmount = 0;
+    if (daysSinceRenewal >= 7 || !data.lastRenewalDate) {
+        const newRemaining = Math.max(data.remainingTokens, INITIAL_TOKENS);
+        renewalAmount = newRemaining - data.remainingTokens;
+        needsRenewal = true;
+        data.remainingTokens = newRemaining;
+    }
+
+    // Reset daily count if new day OR if we need renewal
+    if (data.dailyResetDate !== todayStr || needsRenewal) {
+        const updates: any = {};
+        if (data.dailyResetDate !== todayStr) {
+            updates.dailyRequestCount = 0;
+            updates.dailyResetDate = todayStr;
+            data.dailyRequestCount = 0;
+            data.dailyResetDate = todayStr;
+        }
+        if (needsRenewal) {
+            updates.remainingTokens = data.remainingTokens;
+            updates.lastRenewalDate = todayStr;
+            data.lastRenewalDate = todayStr;
+            
+            if (renewalAmount > 0) {
+                // We add a transaction record in firestore 
+                await addDoc(collection(db, 'aiTokenTransactions'), {
+                    userId,
+                    type: 'admin_grant',
+                    amount: renewalAmount,
+                    description: 'تجديد الرصيد الأسبوعي مجاناً',
+                    timestamp: serverTimestamp(),
+                });
+            }
+        }
+        await updateDoc(accountRef, updates);
     }
     
     return {

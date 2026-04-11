@@ -179,6 +179,7 @@ export interface AITokenAccount {
     remainingTokens: number;
     dailyRequestCount: number;
     dailyResetDate: string;       // YYYY-MM-DD
+    lastRenewalDate?: string;     // YYYY-MM-DD
     lastUsed: Date | null;
     createdAt: Date;
     suspended: boolean;

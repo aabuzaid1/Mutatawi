@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminAuth, adminDb } from '@/app/lib/firebase-admin';
 
-const INITIAL_TOKENS = 25000;
+const INITIAL_TOKENS = 50000;
 
 async function verifyAuth(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
@@ -38,13 +38,47 @@ export async function GET(request: NextRequest) {
         }
 
         const data = snap.data()!;
-        const today = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+        const today = new Date();
 
-        // Reset daily count if new day
-        if (data.dailyResetDate !== today) {
-            await accountRef.update({ dailyRequestCount: 0, dailyResetDate: today });
-            data.dailyRequestCount = 0;
-            data.dailyResetDate = today;
+        // Check for weekly renewal (every 7 days)
+        const lastRenewal = data.lastRenewalDate ? new Date(data.lastRenewalDate) : (data.createdAt?.toDate?.() || today);
+        const daysSinceRenewal = Math.floor((today.getTime() - lastRenewal.getTime()) / (1000 * 60 * 60 * 24));
+
+        let needsRenewal = false;
+        let renewalAmount = 0;
+        if (daysSinceRenewal >= 7 || !data.lastRenewalDate) {
+            const newRemaining = Math.max(data.remainingTokens, INITIAL_TOKENS);
+            renewalAmount = newRemaining - data.remainingTokens;
+            needsRenewal = true;
+            data.remainingTokens = newRemaining;
+        }
+
+        // Reset daily count if new day OR if we need renewal
+        if (data.dailyResetDate !== todayStr || needsRenewal) {
+            const updates: any = {};
+            if (data.dailyResetDate !== todayStr) {
+                updates.dailyRequestCount = 0;
+                updates.dailyResetDate = todayStr;
+                data.dailyRequestCount = 0;
+                data.dailyResetDate = todayStr;
+            }
+            if (needsRenewal) {
+                updates.remainingTokens = data.remainingTokens;
+                updates.lastRenewalDate = todayStr;
+                data.lastRenewalDate = todayStr;
+                
+                if (renewalAmount > 0) {
+                    await adminDb.collection('aiTokenTransactions').add({
+                        userId: auth.uid,
+                        type: 'admin_grant',
+                        amount: renewalAmount,
+                        description: 'تجديد الرصيد الأسبوعي مجاناً',
+                        timestamp: FieldValue.serverTimestamp(),
+                    });
+                }
+            }
+            await accountRef.update(updates);
         }
 
         // Get recent history (simple query to avoid composite index requirement)
@@ -113,6 +147,7 @@ export async function POST(request: NextRequest) {
             remainingTokens: INITIAL_TOKENS,
             dailyRequestCount: 0,
             dailyResetDate: new Date().toISOString().split('T')[0],
+            lastRenewalDate: new Date().toISOString().split('T')[0],
             lastUsed: null,
             createdAt: FieldValue.serverTimestamp(),
             suspended: false,
