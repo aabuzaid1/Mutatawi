@@ -98,7 +98,6 @@ export default function NewCoursePage() {
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [totalDuration, setTotalDuration] = useState('');
     const [lessons, setLessons] = useState<LessonForm[]>([{ ...emptyLesson }]);
     const [saving, setSaving] = useState(false);
 
@@ -284,7 +283,7 @@ export default function NewCoursePage() {
                 category,
                 thumbnail: thumbnailUrl,
                 totalLessons: courseLessons.length,
-                totalDuration: totalDuration || calculateTotalDuration(courseLessons),
+                totalDuration: calculateTotalDuration(courseLessons as any),
                 level: level as any,
                 lessons: courseLessons,
                 status: publish ? 'published' : 'draft',
@@ -452,13 +451,12 @@ export default function NewCoursePage() {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1.5">المدة الإجمالية</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-1.5">المدة الإجمالية (تحسب تلقائياً)</label>
                                 <input
                                     type="text"
-                                    value={totalDuration}
-                                    onChange={(e) => setTotalDuration(e.target.value)}
-                                    placeholder="مثال: 2 ساعة"
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none text-sm"
+                                    value={calculateTotalDuration(lessons as any)}
+                                    readOnly
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 outline-none text-sm cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -869,16 +867,33 @@ export default function NewCoursePage() {
     );
 }
 
-function calculateTotalDuration(lessons: Lesson[]): string {
+function calculateTotalDuration(lessons: { type?: string, duration?: string, questions?: any[] }[]): string {
     let totalSeconds = 0;
+    
     lessons.forEach(l => {
-        const parts = l.duration.split(':');
-        if (parts.length === 2) {
-            totalSeconds += parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        let lessonSeconds = 0;
+        if (l.duration && l.duration.includes(':')) {
+            const parts = l.duration.split(':');
+            if (parts.length === 2 && !isNaN(parseInt(parts[0])) && !isNaN(parseInt(parts[1]))) {
+                lessonSeconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            } else if (parts.length === 3 && !isNaN(parseInt(parts[0])) && !isNaN(parseInt(parts[1])) && !isNaN(parseInt(parts[2]))) {
+                lessonSeconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+            }
+        }
+        
+        if (lessonSeconds > 0) {
+            totalSeconds += lessonSeconds;
+        } else if (l.type === 'quiz') {
+            totalSeconds += (l.questions?.length || 0) * 60; // 1 minute per question as fallback
         }
     });
+
+    if (totalSeconds === 0) return '0 دقيقة';
+
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.ceil((totalSeconds % 3600) / 60);
-    if (hours > 0) return `${hours} ساعة ${minutes} دقيقة`;
+    
+    if (hours > 0 && minutes > 0) return `${hours} ساعة و ${minutes} دقيقة`;
+    if (hours > 0) return `${hours} ساعة`;
     return `${minutes} دقيقة`;
 }
