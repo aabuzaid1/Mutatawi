@@ -16,6 +16,7 @@ import {
     IoCloudUploadOutline,
     IoCloseOutline,
     IoExtensionPuzzleOutline,
+    IoEaselOutline,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import { useAuth } from '@/app/hooks/useAuth';
@@ -23,7 +24,7 @@ import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { createCourse } from '@/app/lib/firestore';
-import { uploadCourseThumbnail, compressImage, uploadCourseVideo } from '@/app/lib/storage';
+import { uploadCourseThumbnail, compressImage, uploadCourseVideo, uploadCoursePPTX } from '@/app/lib/storage';
 import { Lesson, CourseCategory, QuizQuestion } from '@/app/types';
 import Navbar from '@/app/components/layout/Navbar';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
@@ -53,7 +54,7 @@ const levels = [
 
 interface LessonForm {
     title: string;
-    type: 'video' | 'activity' | 'quiz';
+    type: 'video' | 'activity' | 'quiz' | 'slides';
     videoSource: 'youtube' | 'upload';
     youtubeVideoId: string;
     videoUrl: string;
@@ -63,6 +64,8 @@ interface LessonForm {
     activityImageUrl: string;
     activityText: string;
     questions: QuizQuestion[];
+    slidesFileUrl: string;
+    slidesFile?: File | null;
     duration: string;
     section: string;
 }
@@ -77,6 +80,7 @@ const emptyLesson: LessonForm = {
     activityImageUrl: '',
     activityText: '',
     questions: [],
+    slidesFileUrl: '',
     duration: '',
     section: '',
 };
@@ -310,9 +314,23 @@ export default function NewCoursePage() {
                         return;
                     }
                 }
+
+                if (l.type === 'slides' && l.slidesFile) {
+                    toast.loading(`جاري رفع ملف سلايدات درس ${i + 1}...`, { id: 'uploading-pptx' });
+                    try {
+                        const url = await uploadCoursePPTX(l.slidesFile);
+                        l.slidesFileUrl = url;
+                    } catch (err) {
+                        toast.dismiss('uploading-pptx');
+                        toast.error(`فشل رفع سلايدات درس ${i + 1}`);
+                        setSaving(false);
+                        return;
+                    }
+                }
             }
             toast.dismiss('uploading-video');
             toast.dismiss('uploading-image');
+            toast.dismiss('uploading-pptx');
 
             const courseLessons: Lesson[] = validLessons.map((l, i) => ({
                 title: l.title,
@@ -321,6 +339,8 @@ export default function NewCoursePage() {
                     ? (l.videoSource === 'youtube' ? { youtubeVideoId: l.youtubeVideoId } : { videoUrl: l.videoUrl })
                     : l.type === 'activity'
                         ? { activityImageUrl: l.activityImageUrl, activityText: l.activityText }
+                        : l.type === 'slides'
+                        ? { slidesFileUrl: l.slidesFileUrl }
                         : { questions: l.questions.filter(q => q.question.trim().length > 0) }),
                 duration: l.duration || '0:00',
                 order: i + 1,
@@ -601,6 +621,16 @@ export default function NewCoursePage() {
                                                     <IoExtensionPuzzleOutline size={16} />
                                                     اختبار
                                                 </button>
+                                                <button
+                                                    onClick={() => updateLesson(index, 'type', 'slides')}
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-all ${lesson.type === 'slides'
+                                                            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300'
+                                                            : 'bg-white text-slate-500 border border-slate-200'
+                                                        }`}
+                                                >
+                                                    <IoEaselOutline size={16} />
+                                                    سلايدات
+                                                </button>
                                             </div>
                                         </div>
 
@@ -726,6 +756,39 @@ export default function NewCoursePage() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                </div>
+                                            )}
+
+                                            {lesson.type === 'slides' && (
+                                                <div className="sm:col-span-3 space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100 shadow-sm">
+                                                    <label className="block text-xs font-bold text-orange-700 mb-1.5">
+                                                        <IoEaselOutline size={14} className="inline ml-1" />
+                                                        ملف العرض التقديمي (PowerPoint)
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept=".pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                if (file.size > 50 * 1024 * 1024) {
+                                                                    toast.error('حجم الملف كبير جداً (الحد الأقصى 50MB)');
+                                                                    e.target.value = '';
+                                                                    return;
+                                                                }
+                                                                const updated = [...lessons];
+                                                                updated[index] = { ...updated[index], slidesFile: file, slidesFileUrl: '' };
+                                                                setLessons(updated);
+                                                            }
+                                                        }}
+                                                        className="w-full text-sm file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200"
+                                                    />
+                                                    {(lesson.slidesFile || lesson.slidesFileUrl) && (
+                                                        <span className="text-xs text-green-600 font-bold px-1 block">
+                                                            {lesson.slidesFile ? `✅ ${lesson.slidesFile.name}` : '✅ يوجد ملف سلايدات محفوظ'}
+                                                        </span>
+                                                    )}
+                                                    <p className="text-[11px] text-orange-500">يدعم ملفات .pptx (الحد الأقصى 50MB). سيتم استخراج محتوى الشرائح تلقائياً.</p>
                                                 </div>
                                             )}
 

@@ -114,14 +114,24 @@ export interface QuizQuestion {
     explanation?: string;
 }
 
+export interface SlideContent {
+    slideNumber: number;
+    title?: string;
+    content: string;
+    notes?: string;
+    aiExplanation?: string;
+}
+
 export interface Lesson {
     title: string;
-    type: 'video' | 'activity' | 'quiz';
+    type: 'video' | 'activity' | 'quiz' | 'slides';
     youtubeVideoId?: string;      // For video lessons
     videoUrl?: string;            // For uploaded video lessons
     activityImageUrl?: string;    // For activity lessons (image URL)
     activityText?: string;        // Text content for activity
     questions?: QuizQuestion[];   // For quiz lessons
+    slidesFileUrl?: string;       // For slides lessons (PPTX file URL)
+    slidesData?: SlideContent[];  // Parsed slide content
     duration: string; // e.g. "12:34"
     order: number;
     section?: string;             // Section name (e.g., "Gmail", "Google Calendar")

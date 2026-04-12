@@ -15,6 +15,7 @@ import {
     IoDocumentTextOutline,
     IoExtensionPuzzleOutline,
     IoCloseCircle,
+    IoEaselOutline,
 } from 'react-icons/io5';
 import Link from 'next/link';
 import 'katex/dist/katex.min.css';
@@ -26,6 +27,9 @@ import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import toast from 'react-hot-toast';
+import QuizAIExplainer from '@/app/components/course/QuizAIExplainer';
+import VideoAIExplainer from '@/app/components/course/VideoAIExplainer';
+import SlidesViewer from '@/app/components/course/SlidesViewer';
 
 export default function CourseDetailPage() {
     const params = useParams();
@@ -504,9 +508,27 @@ export default function CourseDetailPage() {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* AI Quiz Explainer */}
+                                        {user && currentLesson.questions && (
+                                            <QuizAIExplainer
+                                                questions={currentLesson.questions}
+                                                quizAnswers={quizAnswers}
+                                                quizSubmitted={quizSubmitted}
+                                            />
+                                        )}
                                     </div>
                                 </div>
+                            ) : currentLesson?.type === 'slides' ? (
+                                <SlidesViewer
+                                    slidesData={currentLesson.slidesData || []}
+                                    slidesFileUrl={currentLesson.slidesFileUrl}
+                                    lessonTitle={currentLesson.title}
+                                    courseId={course.id}
+                                    lessonIndex={activeLesson}
+                                />
                             ) : (
+                                <>
                                 <div className="bg-black rounded-2xl overflow-hidden shadow-xl mb-6 aspect-video">
                                     {currentLesson ? (
                                         currentLesson.videoUrl ? (
@@ -532,6 +554,16 @@ export default function CourseDetailPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* AI Video Explainer */}
+                                {user && currentLesson && (
+                                    <VideoAIExplainer
+                                        videoTitle={currentLesson.title}
+                                        youtubeVideoId={currentLesson.youtubeVideoId}
+                                        videoUrl={currentLesson.videoUrl}
+                                    />
+                                )}
+                                </>
                             )}
 
                             {/* Current Lesson Info */}
@@ -667,13 +699,15 @@ export default function CourseDetailPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <p className={`text-sm font-medium truncate ${activeLesson === index ? 'text-primary-700' : 'text-slate-700'
                                                             }`}>
-                                                            {lesson.type === 'activity' ? '📋 ' : lesson.type === 'quiz' ? '🧩 ' : ''}{lesson.title}
+                                                            {lesson.type === 'activity' ? '📋 ' : lesson.type === 'quiz' ? '🧩 ' : lesson.type === 'slides' ? '📊 ' : ''}{lesson.title}
                                                         </p>
                                                         <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                                                             {lesson.type === 'activity' ? (
                                                                 <><IoDocumentTextOutline size={12} /> نشاط تطبيقي</>
                                                             ) : lesson.type === 'quiz' ? (
                                                                 <><IoExtensionPuzzleOutline size={12} /> اختبار معلومات</>
+                                                            ) : lesson.type === 'slides' ? (
+                                                                <><IoEaselOutline size={12} /> عرض تقديمي</>
                                                             ) : (
                                                                 <><IoTimeOutline size={12} /> {lesson.duration}</>
                                                             )}
@@ -686,6 +720,8 @@ export default function CourseDetailPage() {
                                                             <IoDocumentTextOutline className="text-primary-500 flex-shrink-0" size={20} /> :
                                                         lesson.type === 'quiz' ?
                                                             <IoExtensionPuzzleOutline className="text-primary-500 flex-shrink-0" size={20} /> :
+                                                        lesson.type === 'slides' ?
+                                                            <IoEaselOutline className="text-orange-500 flex-shrink-0" size={20} /> :
                                                             <IoPlayCircleOutline className="text-primary-500 flex-shrink-0" size={20} />
                                                     )}
                                                 </button>

@@ -54,6 +54,22 @@ export async function uploadCourseVideo(file: File, courseId?: string, onProgres
 }
 
 /**
+ * Upload a course PowerPoint file to Firebase Storage
+ */
+export async function uploadCoursePPTX(file: File, courseId?: string): Promise<string> {
+    const uniqueId = courseId || `temp_${Date.now()}`;
+    const fileName = `course-slides/${uniqueId}_${Date.now()}.pptx`;
+    const storageRef = ref(storage, fileName);
+
+    const snapshot = await uploadBytes(storageRef, file, {
+        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    });
+
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+}
+
+/**
  * Delete a course thumbnail from Firebase Storage
  */
 export async function deleteCourseThumbnail(url: string): Promise<void> {

@@ -19,6 +19,22 @@ service firebase.storage {
       allow write: if false; // الرفع مسموح فقط من السيرفر (Admin SDK)
     }
 
+    // ===================== COURSE SLIDES =====================
+    // السماح برفع ملفات عروض PowerPoint التقديمية
+    match /course-slides/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // ===================== COURSE VIDEOS =====================
+    // السماح برفع ملفات الفيديو
+    match /course-videos/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 500 * 1024 * 1024;
+    }
+
     // ===================== DEFAULT: DENY ALL =====================
     match /{allPaths=**} {
       allow read, write: if false;
