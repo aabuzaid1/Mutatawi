@@ -126,7 +126,7 @@ export default function VideoAIExplainer({
             {/* Explain Button */}
             {!explanation && !loading && (
                 <motion.button
-                    onClick={handleExplain}
+                    onClick={() => handleExplain(false)}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-bold text-sm shadow-md shadow-blue-200/50 hover:shadow-lg hover:shadow-blue-300/50 transition-all"
@@ -168,7 +168,7 @@ export default function VideoAIExplainer({
                 >
                     <p className="text-red-600 text-sm font-bold mb-2">{error}</p>
                     <button
-                        onClick={handleExplain}
+                        onClick={() => handleExplain(false)}
                         className="text-xs text-red-500 hover:underline font-medium"
                     >
                         حاول مرة أخرى
