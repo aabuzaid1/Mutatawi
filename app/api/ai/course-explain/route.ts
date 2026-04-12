@@ -43,6 +43,8 @@ interface SlideExplainRequest {
 
 interface VideoExplainRequest {
     type: 'video';
+    courseId?: string;
+    lessonIndex?: number;
     videoTitle: string;
     transcript?: string;
     youtubeVideoId?: string;
@@ -215,7 +217,7 @@ async function callOllamaAPI(
     const apiKey = process.env.OLLAMA_API_KEY;
     if (!apiKey) throw new Error('GLM API_KEY not configured');
 
-    const model = process.env.OLLAMA_MODEL || 'glm-5.1';
+    const model = process.env.OLLAMA_MODEL || 'glm-4';
     let token = apiKey;
 
     // Use JWT token directly via the helper if the key is formatted properly
@@ -364,26 +366,30 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 7. Save Slide Explanation if requested
-        if (body.type === 'slide' && body.courseId && typeof body.lessonIndex === 'number') {
+        // 7. Save Slide or Video Explanation if requested
+        if ('courseId' in body && body.courseId && 'lessonIndex' in body && typeof body.lessonIndex === 'number') {
             try {
                 const courseRef = adminDb.collection('courses').doc(body.courseId);
                 const courseSnap = await courseRef.get();
                 if (courseSnap.exists) {
                     const courseData = courseSnap.data();
                     const lessons = courseData?.lessons || [];
-                    if (lessons[body.lessonIndex]?.type === 'slides') {
+                    
+                    if (body.type === 'slide' && lessons[body.lessonIndex]?.type === 'slides') {
                         const slideDataArray = lessons[body.lessonIndex].slidesData || [];
                         const slideToUpdate = slideDataArray.findIndex((s: any) => s.slideNumber === body.slideNumber);
                         if (slideToUpdate !== -1) {
                             slideDataArray[slideToUpdate].aiExplanation = result.content;
                             lessons[body.lessonIndex].slidesData = slideDataArray;
-                            await courseRef.update({ lessons });
                         }
+                    } else if (body.type === 'video' && lessons[body.lessonIndex]?.type === 'video') {
+                        lessons[body.lessonIndex].aiExplanation = result.content;
                     }
+
+                    await courseRef.update({ lessons });
                 }
             } catch (err) {
-                console.error('Failed to save slide AI explanation:', err);
+                console.error('Failed to save AI explanation:', err);
             }
         }
 

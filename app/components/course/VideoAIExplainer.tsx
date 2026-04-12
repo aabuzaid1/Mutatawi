@@ -16,6 +16,9 @@ interface VideoAIExplainerProps {
     youtubeVideoId?: string;
     videoUrl?: string;
     lessonDescription?: string;
+    courseId?: string;
+    lessonIndex?: number;
+    cachedExplanation?: string;
 }
 
 export default function VideoAIExplainer({
@@ -23,15 +26,25 @@ export default function VideoAIExplainer({
     youtubeVideoId,
     videoUrl,
     lessonDescription,
+    courseId,
+    lessonIndex,
+    cachedExplanation,
 }: VideoAIExplainerProps) {
-    const [explanation, setExplanation] = useState<string>('');
+    const [explanation, setExplanation] = useState<string>(cachedExplanation || '');
+    const [localCache, setLocalCache] = useState<string>(cachedExplanation || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [expanded, setExpanded] = useState(true);
     const [tokensUsed, setTokensUsed] = useState<number>(0);
     const [transcriptStatus, setTranscriptStatus] = useState<string>('');
 
-    const handleExplain = async () => {
+    const handleExplain = async (forceRegenerate = false) => {
+        if (!forceRegenerate && localCache) {
+            setExplanation(localCache);
+            setExpanded(true);
+            return;
+        }
+
         setLoading(true);
         setError('');
         setExplanation('');
@@ -81,6 +94,8 @@ export default function VideoAIExplainer({
                 },
                 body: JSON.stringify({
                     type: 'video',
+                    courseId,
+                    lessonIndex,
                     videoTitle,
                     transcript,
                     youtubeVideoId,
@@ -95,8 +110,10 @@ export default function VideoAIExplainer({
             }
 
             setExplanation(data.explanation);
+            setLocalCache(data.explanation);
             setTokensUsed(data.tokensUsed || 0);
             setTranscriptStatus('');
+            setExpanded(true);
         } catch (err: any) {
             setError(err.message || 'فشل الاتصال');
         } finally {
@@ -206,11 +223,11 @@ export default function VideoAIExplainer({
                                     </div>
                                     <div className="px-5 pb-4 flex items-center justify-between border-t border-blue-50 pt-3">
                                         <button
-                                            onClick={handleExplain}
+                                            onClick={() => handleExplain(true)}
                                             className="text-xs text-blue-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors"
                                         >
                                             <IoSparklesOutline size={14} />
-                                            شرح مرة أخرى
+                                            إعادة الشرح
                                         </button>
                                         <button
                                             onClick={() => setExplanation('')}

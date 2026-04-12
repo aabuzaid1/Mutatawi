@@ -14,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@cyntler/react-doc-viewer": "^1.17.1",
     "@opentelemetry/api": "^1.9.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tiptap/extension-color": "^3.22.2",
@@ -48,7 +49,7 @@
     "next": "^14.2.35",
     "nodemailer": "^8.0.1",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^5.5.207",
+    "pdfjs-dist": "^5.6.205",
     "postcss": "^8.5.6",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",

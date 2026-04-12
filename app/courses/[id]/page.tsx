@@ -561,6 +561,9 @@ export default function CourseDetailPage() {
                                         videoTitle={currentLesson.title}
                                         youtubeVideoId={currentLesson.youtubeVideoId}
                                         videoUrl={currentLesson.videoUrl}
+                                        courseId={course.id}
+                                        lessonIndex={activeLesson}
+                                        cachedExplanation={currentLesson.aiExplanation}
                                     />
                                 )}
                                 </>

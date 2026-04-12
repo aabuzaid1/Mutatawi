@@ -25,7 +25,7 @@ import Latex from 'react-latex-next';
 import { isAdmin, loadAdminEmails } from '@/app/lib/adminConfig';
 import { createCourse } from '@/app/lib/firestore';
 import { uploadCourseThumbnail, compressImage, uploadCourseVideo, uploadCoursePPTX } from '@/app/lib/storage';
-import { Lesson, CourseCategory, QuizQuestion } from '@/app/types';
+import { Lesson, CourseCategory, QuizQuestion, SlideContent } from '@/app/types';
 import Navbar from '@/app/components/layout/Navbar';
 import LoadingSpinner from '@/app/components/shared/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -66,6 +66,7 @@ interface LessonForm {
     questions: QuizQuestion[];
     slidesFileUrl: string;
     slidesFile?: File | null;
+    slidesData?: SlideContent[];
     duration: string;
     section: string;
 }
@@ -81,6 +82,7 @@ const emptyLesson: LessonForm = {
     activityText: '',
     questions: [],
     slidesFileUrl: '',
+    slidesData: [],
     duration: '',
     section: '',
 };
@@ -320,6 +322,27 @@ export default function NewCoursePage() {
                     try {
                         const url = await uploadCoursePPTX(l.slidesFile);
                         l.slidesFileUrl = url;
+
+                        try {
+                            const isPDF = l.slidesFile.name.toLowerCase().endsWith('.pdf');
+                            toast.loading(`جاري استخراج البيانات للدرس ${i + 1}...`, { id: 'parsing-file' });
+                            
+                            let parsedSlides;
+                            if (isPDF) {
+                                const { extractTextFromPDF } = await import('@/app/lib/pdfParser');
+                                parsedSlides = await extractTextFromPDF(l.slidesFile);
+                            } else {
+                                const { extractTextFromPPTX } = await import('@/app/lib/pptxParser');
+                                parsedSlides = await extractTextFromPPTX(l.slidesFile);
+                            }
+                            
+                            l.slidesData = parsedSlides;
+                            toast.dismiss('parsing-file');
+                        } catch (parseErr) {
+                            toast.dismiss('parsing-file');
+                            console.error('Error parsing file:', parseErr);
+                            toast.error(`تم رفع الملف لكن يوجد مشكلة في استخراج النصوص تلقائياً`);
+                        }
                     } catch (err) {
                         toast.dismiss('uploading-pptx');
                         toast.error(`فشل رفع سلايدات درس ${i + 1}`);
@@ -340,7 +363,7 @@ export default function NewCoursePage() {
                     : l.type === 'activity'
                         ? { activityImageUrl: l.activityImageUrl, activityText: l.activityText }
                         : l.type === 'slides'
-                        ? { slidesFileUrl: l.slidesFileUrl }
+                        ? { slidesFileUrl: l.slidesFileUrl, slidesData: l.slidesData }
                         : { questions: l.questions.filter(q => q.question.trim().length > 0) }),
                 duration: l.duration || '0:00',
                 order: i + 1,
@@ -763,11 +786,11 @@ export default function NewCoursePage() {
                                                 <div className="sm:col-span-3 space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100 shadow-sm">
                                                     <label className="block text-xs font-bold text-orange-700 mb-1.5">
                                                         <IoEaselOutline size={14} className="inline ml-1" />
-                                                        ملف العرض التقديمي (PowerPoint)
+                                                        ملف العرض (PowerPoint أو PDF)
                                                     </label>
                                                     <input
                                                         type="file"
-                                                        accept=".pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
+                                                        accept=".pdf,application/pdf,.pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
                                                         onChange={(e) => {
                                                             const file = e.target.files?.[0];
                                                             if (file) {

@@ -3,16 +3,18 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    IoSparklesOutline,
+    IoChevronForwardOutline,
+    IoChevronBackOutline,
     IoDocumentTextOutline,
-    IoCheckmarkCircleOutline,
+    IoSparklesOutline,
+    IoCheckmarkCircleOutline
 } from 'react-icons/io5';
 import { SlideContent } from '@/app/types';
 import { auth } from '@/app/lib/firebase';
 
 interface SlidesViewerProps {
     slidesData: SlideContent[];
-    slidesFileUrl?: string;
+    slidesFileUrl?: string; // Kept in case we want to show a download button
     lessonTitle: string;
     courseId?: string;
     lessonIndex?: number;
@@ -20,24 +22,9 @@ interface SlidesViewerProps {
 
 export default function SlidesViewer({ slidesData, slidesFileUrl, lessonTitle, courseId, lessonIndex }: SlidesViewerProps) {
     const [slides, setSlides] = useState<SlideContent[]>(slidesData || []);
-    const [loadingExpl, setLoadingExpl] = useState(false);
-    const [error, setError] = useState('');
-    const [progress, setProgress] = useState({ current: 0, total: 0 });
-
-    // Clean Firebase URL to prevent external viewers from blocking the request due to token params
-    const getCleanedUrl = (url: string) => {
-        if (!url) return '';
-        try {
-            const u = new URL(url);
-            if (u.hostname.includes('firebasestorage.googleapis.com')) {
-                u.searchParams.delete('token');
-                return u.toString();
-            }
-            return url;
-        } catch {
-            return url;
-        }
-    };
+    const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+    const [loadingExpl, setLoadingExpl] = useState<{ [key: number]: boolean }>({});
+    const [error, setError] = useState<{ [key: number]: string }>({});
 
     // Sync state if props change
     useEffect(() => {
@@ -46,206 +33,244 @@ export default function SlidesViewer({ slidesData, slidesFileUrl, lessonTitle, c
         }
     }, [slidesData]);
 
-    const handleExplainAllSlides = async () => {
-        if (!slides || slides.length === 0) return;
-        setLoadingExpl(true);
-        setError('');
-        setProgress({ current: 0, total: slides.length });
+    if ((!slides || slides.length === 0) && !slidesFileUrl) {
+        return (
+            <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-100 p-10 text-center">
+                <IoDocumentTextOutline size={48} className="mx-auto mb-3 text-slate-300" />
+                <p className="text-slate-400 font-medium">لم يتم إرفاق ملف عرض تقديمي لهذا الدرس.</p>
+            </div>
+        );
+    }
+
+    const currentSlide = slides && slides.length > 0 ? slides[currentSlideIndex] : null;
+
+    const handleExplainSlide = async (slideIndex: number) => {
+        const slide = slides[slideIndex];
+        if (!slide || slide.aiExplanation) return;
+
+        setLoadingExpl(prev => ({ ...prev, [slideIndex]: true }));
+        setError(prev => ({ ...prev, [slideIndex]: '' }));
 
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) {
-                setError('يرجى تسجيل الدخول لتوليد الشرح');
-                setLoadingExpl(false);
+                setError(prev => ({ ...prev, [slideIndex]: 'يرجى تسجيل الدخول لتوليد الشرح' }));
                 return;
             }
 
-            const updatedSlides = [...slides];
-            
-            // Loop through each slide individually to generate explanations dynamically
-            // and save them securely on the server-side via the route logic
-            for (let i = 0; i < slides.length; i++) {
-                setProgress({ current: i + 1, total: slides.length });
-                const slide = slides[i];
+            const res = await fetch('/api/ai/course-explain', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    type: 'slide',
+                    courseId,
+                    lessonIndex,
+                    slideTitle: slide.title,
+                    slideContent: slide.content,
+                    slideNotes: slide.notes,
+                    slideNumber: slide.slideNumber,
+                }),
+            });
 
-                // Skip if already explained
-                if (slide.aiExplanation && slide.aiExplanation.trim().length > 10) {
-                    continue;
-                }
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'فشل توليد الشرح');
+            }
 
-                const res = await fetch('/api/ai/course-explain', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        type: 'slide',
-                        courseId,
-                        lessonIndex,
-                        slideTitle: slide.title,
-                        slideContent: slide.content,
-                        slideNotes: slide.notes,
-                        slideNumber: slide.slideNumber,
-                    }),
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.explanation) {
-                        updatedSlides[i] = { ...slide, aiExplanation: data.explanation };
-                        // Update local state partially to show progress directly to user
-                        setSlides([...updatedSlides]);
-                    }
-                } else {
-                    const errorData = await res.json();
-                    console.error('Slide generation error:', errorData.error);
-                    // Stop on token limit or crucial API error to avoid looping bans
-                    if (res.status === 429 || res.status === 500) {
-                       throw new Error(errorData.error || 'توقف التوليد لخطأ بالسيرفر أو بالرصيد.');
-                    }
-                }
+            const data = await res.json();
+            if (data.explanation) {
+                const updatedSlides = [...slides];
+                updatedSlides[slideIndex] = { ...slide, aiExplanation: data.explanation };
+                setSlides(updatedSlides);
             }
         } catch (err: any) {
-            setError(err.message || 'حدث خطأ أثناء التوليد');
+            setError(prev => ({ ...prev, [slideIndex]: err.message || 'حدث خطأ' }));
         } finally {
-            setLoadingExpl(false);
-            setProgress({ current: 0, total: 0 });
+            setLoadingExpl(prev => ({ ...prev, [slideIndex]: false }));
         }
     };
 
-    const hasAnyExplanations = slides.some(s => s.aiExplanation && s.aiExplanation.trim().length > 10);
-    const isFinishedAll = slides.every(s => s.aiExplanation && s.aiExplanation.trim().length > 10);
+    const nextSlide = () => {
+        if (currentSlideIndex < slides.length - 1) setCurrentSlideIndex(prev => prev + 1);
+    };
+
+    const prevSlide = () => {
+        if (currentSlideIndex > 0) setCurrentSlideIndex(prev => prev - 1);
+    };
 
     return (
         <div className="flex flex-col gap-6">
-            {/* 1. Native PowerPoint IFrame Viewer */}
-            {slidesFileUrl ? (
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-orange-100 flex flex-col h-[70vh] min-h-[500px]">
-                    <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 flex flex-wrap items-center justify-between shadow-sm gap-2">
-                        <div className="flex items-center gap-2 text-white">
-                            <IoDocumentTextOutline size={18} />
-                            <span className="font-bold text-sm">العرض التقديمي: {lessonTitle}</span>
+            <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-orange-100 flex flex-col h-[75vh] min-h-[550px] relative">
+                
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4 flex items-center justify-between shadow-md relative z-10">
+                    <div className="flex items-center gap-3 text-white">
+                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+                            <IoDocumentTextOutline size={22} className="text-white" />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <a href={`https://docs.google.com/viewer?url=${encodeURIComponent(getCleanedUrl(slidesFileUrl))}`} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
-                                🔗 فتح في نافذة جديدة
-                            </a>
-                            <a href={slidesFileUrl} target="_blank" rel="noopener noreferrer" className="text-white hover:text-orange-100 text-xs font-bold underline px-2">
-                                تحميل
-                            </a>
+                        <div>
+                            <span className="block text-xs text-white/80 font-medium mb-0.5">عرض تقديمي</span>
+                            <span className="font-bold text-sm tracking-wide">{lessonTitle}</span>
                         </div>
                     </div>
-                    <div className="w-full h-full flex-1 bg-slate-50 relative group">
-                        {/* Fallback overlay in case iframe fails (Localhost CORS/Block issue) */}
-                        <div className="absolute inset-x-0 top-0 p-3 flex justify-center pointer-events-none z-20">
-                             <div className="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-orange-200 pointer-events-auto text-center max-w-sm">
-                                 <p className="text-sm font-bold text-slate-800 mb-2">هل يظهر لك محتوى محظور (Blocked)؟ 🚫</p>
-                                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                                     يحدث هذا بسبب حماية المتصفح أثناء التطوير على <b>localhost</b>. 
-                                     عند رفع الموقع ستعمل بشكل طبيعي. الآن اضغط الزر بالأسفل.
-                                 </p>
-                                 <a href={`https://docs.google.com/viewer?url=${encodeURIComponent(getCleanedUrl(slidesFileUrl))}`} target="_blank" rel="noopener noreferrer" className="block w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 rounded-lg transition-colors">
-                                     عرض السلايدات خارج الإطار
-                                 </a>
-                             </div>
-                        </div>
-                        <iframe
-                            src={`https://docs.google.com/viewer?url=${encodeURIComponent(getCleanedUrl(slidesFileUrl))}&embedded=true`}
-                            width="100%"
-                            height="100%"
-                            frameBorder="0"
-                            title={lessonTitle}
-                            className="w-full h-full relative z-10"
-                            onError={(e) => console.error("Iframe load error", e)}
-                        />
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-100 p-10 text-center">
-                    <IoDocumentTextOutline size={48} className="mx-auto mb-3 text-slate-300" />
-                    <p className="text-slate-400 font-medium">لم يتم إرفاق ملف عرض تقديمي لهذا الدرس.</p>
-                </div>
-            )}
-
-            {/* 2. AI Explanations Section */}
-            {slides.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-xl border border-orange-100/50 p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-5">
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
-                                <IoSparklesOutline size={22} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">الشرح الذكي للشرائح</h3>
-                                <p className="text-sm text-slate-500">مساعدك الشخصي لشرح وتوضيح كل شريحة بالتفصيل</p>
-                            </div>
-                        </div>
-
-                        {!isFinishedAll && (
-                            <motion.button
-                                onClick={handleExplainAllSlides}
-                                disabled={loadingExpl}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-200 hover:shadow-lg disabled:opacity-50 transition-all min-w-[200px]"
-                            >
-                                {loadingExpl ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        جاري شرح شريحة {progress.current} من {progress.total}...
-                                    </>
-                                ) : (
-                                    <>
-                                        <IoSparklesOutline size={18} />
-                                        {hasAnyExplanations ? 'إكمال شرح باقي الشرائح' : 'توليد الشرح لجميع الشرائح'}
-                                    </>
-                                )}
-                            </motion.button>
-                        )}
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 text-sm font-bold border border-red-100">
-                            🚨 {error}
-                        </div>
+                    {slidesFileUrl && (
+                        <a href={slidesFileUrl} target="_blank" rel="noopener noreferrer" className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors backdrop-blur-md">
+                            عرض الملف الأصلي 📄
+                        </a>
                     )}
+                </div>
 
-                    {!hasAnyExplanations && !loadingExpl ? (
-                        <div className="text-center py-10 bg-orange-50/50 rounded-xl border border-orange-100/50">
-                            <IoSparklesOutline size={40} className="mx-auto text-orange-200 mb-3" />
-                            <p className="text-slate-500 font-medium">لم يتم توليد أي شروحات لهذه السلايدات بعد.</p>
-                            <p className="text-sm text-slate-400 mt-1">كن أول من يطلب الشرح ليتم حفظه لك وللجميع!</p>
+                {/* Slides Main Display & Explanations */}
+                <div className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar flex flex-col">
+                    {!slides || slides.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+                            <IoDocumentTextOutline size={64} className="mx-auto mb-4 text-slate-300" />
+                            <p className="text-slate-500 font-bold text-lg mb-2">لا يوجد محتوى نصي مقسم لهذه الشريحة</p>
+                            <p className="text-slate-400 text-sm max-w-md mx-auto">
+                                لم يتم العثور على شرائح نصية. يمكنك النقر على "عرض الملف الأصلي" بالاعلى لفتح الملف بصيغته الأساسية.
+                            </p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {slides.map((slide, idx) => (
-                                slide.aiExplanation ? (
-                                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all">
-                                        <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                                            <span className="font-bold text-slate-700 flex items-center gap-2 text-sm">
-                                                <span className="w-6 h-6 bg-orange-500 text-white rounded-md flex items-center justify-center text-xs">
-                                                    {slide.slideNumber}
-                                                </span>
-                                                {slide.title || 'بدون عنوان'}
-                                            </span>
-                                            <IoCheckmarkCircleOutline size={18} className="text-green-500" />
-                                        </div>
-                                        <div className="p-5 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap" dir="auto">
-                                            {slide.aiExplanation}
-                                        </div>
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentSlideIndex}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.3 }}
+                                className="p-8 max-w-4xl mx-auto flex flex-col gap-8 pb-32 w-full"
+                            >
+                                {/* Native Text Viewer Render */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="px-6 py-4 bg-slate-100/50 border-b border-slate-200 flex justify-between items-center">
+                                        <h2 className="text-xl font-bold text-slate-800" dir="auto">
+                                            {currentSlide?.title || 'بدون عنوان'}
+                                        </h2>
+                                        <span className="px-3 py-1 bg-white shadow-sm border border-slate-200 rounded-lg text-slate-500 font-bold text-sm">
+                                            {currentSlide?.slideNumber} / {slides.length}
+                                        </span>
                                     </div>
-                                ) : (
-                                    <div key={idx} className="opacity-50 flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 border-dashed rounded-xl grayscale">
-                                        <span className="font-bold text-slate-500 text-sm">الشريحة {slide.slideNumber} - {slide.title || 'بدون عنوان'}</span>
-                                        <span className="text-xs font-medium px-2 py-1 bg-slate-200 rounded-md text-slate-500">بانتظار الشرح...</span>
+                                    <div className="p-8">
+                                        <div className="prose prose-slate max-w-none prose-lg">
+                                            {currentSlide?.content ? (
+                                                <p className="whitespace-pre-wrap leading-relaxed text-slate-700" dir="auto">
+                                                    {currentSlide.content}
+                                                </p>
+                                            ) : (
+                                                <p className="text-slate-400 italic">لا يوجد محتوى نصي بهذه الشريحة.</p>
+                                            )}
+                                        </div>
+                                        
+                                        {currentSlide?.notes && (
+                                            <div className="mt-8 pt-6 border-t border-slate-100">
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ملاحظات المُحاضر</h3>
+                                                <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-5">
+                                                    <p className="text-orange-900/80 text-sm italic leading-relaxed" dir="auto">
+                                                        {currentSlide.notes}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )
-                            ))}
-                        </div>
+                                </div>
+
+                                {/* Artificial Intelligence Explainer specific to this Slide */}
+                                <div className="bg-gradient-to-b from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-200/60 overflow-hidden">
+                                    <div className="px-6 py-4 bg-orange-100/50 border-b border-orange-200/50 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center">
+                                            <IoSparklesOutline size={18} />
+                                        </div>
+                                        <h3 className="font-bold text-slate-800">شرح الذكاء الاصطناعي لهذه الشريحة</h3>
+                                    </div>
+                                    
+                                    <div className="p-6">
+                                        {currentSlide?.aiExplanation ? (
+                                            <div className="prose prose-slate prose-sm sm:prose-base max-w-none text-slate-700 leading-relaxed whitespace-pre-wrap" dir="auto">
+                                                <div className="flex items-center gap-2 text-green-600 mb-4 bg-green-50 w-fit px-3 py-1.5 rounded-lg border border-green-200">
+                                                    <IoCheckmarkCircleOutline size={18} />
+                                                    <span className="text-xs font-bold">تم توليد الشرح بنجاح واُحتفظ به</span>
+                                                </div>
+                                                {currentSlide.aiExplanation}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6">
+                                                <p className="text-slate-500 mb-5 text-sm">
+                                                    لم يتم توليد شرح لهذه الشريحة بعد. كن أول من يطلب الشرح ليُحفظ تلقائياً في السيرفر وتستفيد منه أنت وزملاؤك!
+                                                </p>
+                                                {error[currentSlideIndex] && (
+                                                    <div className="mb-4 text-red-600 text-xs font-bold bg-red-50 p-3 rounded-lg border border-red-100">
+                                                        {error[currentSlideIndex]}
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={() => handleExplainSlide(currentSlideIndex)}
+                                                    disabled={loadingExpl[currentSlideIndex]}
+                                                    className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50 shadow-md"
+                                                >
+                                                    {loadingExpl[currentSlideIndex] ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            جاري التوليد...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <IoSparklesOutline size={18} />
+                                                            اطلب شرح الشريحة رقم {currentSlide?.slideNumber}
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </AnimatePresence>
                     )}
                 </div>
-            )}
+
+                {/* Footer Navigation */}
+                {slides && slides.length > 0 && (
+                    <div className="absolute bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-slate-200 p-4 flex items-center justify-between z-20">
+                        <button
+                            onClick={prevSlide}
+                            disabled={currentSlideIndex === 0}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-slate-100 transition-all"
+                        >
+                            <IoChevronForwardOutline size={18} />
+                            السابق
+                        </button>
+
+                        <div className="flex gap-1.5 overflow-x-auto max-w-[50%] no-scrollbar px-2">
+                            {slides.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setCurrentSlideIndex(idx)}
+                                    className={`h-2.5 w-2.5 flex-shrink-0 rounded-full transition-all ${
+                                        idx === currentSlideIndex
+                                            ? 'bg-orange-500 w-8'
+                                            : slides[idx].aiExplanation 
+                                                ? 'bg-green-400' 
+                                                : 'bg-slate-200 hover:bg-slate-300'
+                                    }`}
+                                    title={slides[idx].aiExplanation ? 'مشروح' : 'غير مشروح'}
+                                />
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={nextSlide}
+                            disabled={currentSlideIndex === slides.length - 1}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 shadow-md shadow-orange-200 transition-all"
+                        >
+                            التالي
+                            <IoChevronBackOutline size={18} />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

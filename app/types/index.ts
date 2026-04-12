@@ -132,6 +132,7 @@ export interface Lesson {
     questions?: QuizQuestion[];   // For quiz lessons
     slidesFileUrl?: string;       // For slides lessons (PPTX file URL)
     slidesData?: SlideContent[];  // Parsed slide content
+    aiExplanation?: string;       // Cached overall AI explanation for video or activity lessons
     duration: string; // e.g. "12:34"
     order: number;
     section?: string;             // Section name (e.g., "Gmail", "Google Calendar")
